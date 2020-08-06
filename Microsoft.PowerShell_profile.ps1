@@ -109,6 +109,7 @@ function kerr([Parameter(ValueFromRemainingArguments = $true)]$params) {
 	$ignored = @("*Running*", "*Completed*");
 	$lines = kubectl get pods --all-namespaces $params | where { $_ -notlike $ignored[0] -and $_ -notlike $ignored[1] };
 
+	$lines = $lines | Where-Object { return (-not ($_.StartsWith("NAMESPACE"))); }
 	$lines
 }
 
@@ -117,10 +118,18 @@ function kerrdelete() {
 	# emulating the following:
 	#kubectl get pods | grep Error | cut -d' ' -f 1 | xargs kubectl delete pod
 	$lines = kerr;
-
 	#kerr | Foreach-Object $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries) | %{ "kubectl delete pod $_[1] --namespace $_[0]" }
-	kerr | % { $fields = (-split $_); $pod=$fields[1]; $ns=$fields[0]; $cmd = "kubectl delete pod $pod --namespace $ns"; "$cmd"; $_ = Invoke-Expression $cmd }
-
+	$lines | ForEach-Object -Parallel { 
+		$fields = (-split $_); 
+		$pod = $fields[1]; 
+		$ns  = $fields[0]; 
+		if(($ns -eq "NAMESPACE") -and ($pod -eq "NAME") ) {
+			return;
+		}
+		$cmd = "kubectl delete pod $pod --namespace $ns"; 
+		"$cmd"; 
+		$ignoredOutput = Invoke-Expression $cmd 
+	}
 }
 function kst { param ( [string[]]$ignored = @('Running', 'Completed') ) kubectl get pods --watch --all-namespaces $params | where { $_ -notmatch ('(' + [string]::Join(')|(', $ignored) + ')') }; }
 function kcfg([string]$setConfig) { if (!$setConfig) { & kubectl config get-contexts } else { kubectl config use-context $setConfig } }
@@ -237,6 +246,10 @@ Set-Item -force function:Kube-Get-Default-Port {
 	$js = kubectl get pod --namespace $pod.Namespace $pod.Podname -o json | ConvertFrom-Json;
 	$containerSpec = $js.spec.containers | Where-Object { $_.name -eq $pod.Container } | Select-Object -first 1
 
+	if(-not $containerSpec.ports) {
+		Write-Host -ForegroundColor Red "No port information in the container spec, guessing ""80""";
+		return 80;
+	}
 	return $containerSpec.ports[0].containerPort
 }
 
