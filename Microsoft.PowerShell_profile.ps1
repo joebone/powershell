@@ -1,5 +1,9 @@
 #region Imports / other files
 # loader.psm1
+
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+$isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
 function InstallModuleIfAbsent {
 	param([string]$name)
 	if (-not(Get-Module -ListAvailable -Name $name)) {
@@ -7,6 +11,12 @@ function InstallModuleIfAbsent {
 		Install-Module $name -Scope CurrentUser -Force -AllowClobber
 	}
 }
+function GoAdmin { 
+	if($isAdmin) { Write-Host "Already in admin mode"; return ; }
+	& Start-Process wt "/d . pwsh" –Verb RunAs; exit;
+}
+Set-Alias elevate GoAdmin
+Set-Alias sudo GoAdmin
 #Export-ModuleMember -Function InstallModuleIfAbsent
 ########################################
 #endregion
@@ -18,26 +28,38 @@ if(-not (Test-CommandExists rg)) {
 } else {
 	Write-Color -Text "Aliasing ", "grep ","to ","rg"," - ripgrep ftw (pipeline and inline mode supported)!" -Color White, Green, White, Green, White
 
-	Set-Item function:grep -force { 
-		[CmdletBinding(DefaultParameterSetName='paramonly',PositionalBinding=$true,ConfirmImpact='Medium')]
-		Param (
-			#[Parameter(Mandatory=$true,Position=0,ValueFromPipelineByPropertyName=$true,ParameterSetName='Parameter Set 1')] $p1
-			[Parameter(ParameterSetName='paramonly',Mandatory=$true,Position = 0)] 
-			[Parameter(ParameterSetName='pipeparam',Mandatory=$true,Position = 0)]
-			[string[]] $searchString,
+	Set-Alias grep rg
+	# Set-Item -force function:grep { 
+	# 	[CmdletBinding(DefaultParameterSetName='paramonly',PositionalBinding=$true,ConfirmImpact='Medium')]
+	# 	Param (
+	# 		#[Parameter(Mandatory=$true,Position=0,ValueFromPipelineByPropertyName=$true,ParameterSetName='Parameter Set 1')] $p1
+	# 		[Parameter(ParameterSetName='paramonly', Mandatory=$true, Position = 0)] 
+	# 		[Parameter(ParameterSetName='pipeparam', Mandatory=$true, Position = 0)]
+	# 		[string[]] $searchString,
 
-			[Parameter(ParameterSetName='pipeparam',Mandatory=$true,ValueFromPipeline=$true)] 
-			[Parameter(ParameterSetName='pipeonly',Mandatory=$true,ValueFromPipeline=$true)]
-			[string[]] $pipeline
-		)
-		Process {
-			if($pipeline) {
-				$pipeline | rg -i $searchString
-			} else {
-				rg -i $searchString 
-			}
-		}
-	}
+	# 		[Parameter(ParameterSetName='pipeparam', Mandatory=$true, ValueFromPipeline=$true)] 
+	# 		[Parameter(ParameterSetName='pipeonly',  Mandatory=$true, ValueFromPipeline=$true)]
+	# 		[AllowEmptyString()] [string] $pipeline
+	# 	)
+	# 	Begin {
+	# 		Write-Host "Search string: $searchString, Pipeline Length : $($pipeline.length) : pipeline? $(-not (-not $pipeline))";
+	# 	}
+	# 	Process {
+
+	# 		#Write-Host "b4 :  $($pipeline.Length) $($pipeline.Substring(0, 3))"
+	# 		if($pipeline) {
+	# 			#Write-Host "pp"
+	# 			#Write-Host $pipeline.Substring(0, 10)
+	# 			#netstat -a -b -n | rg --context 1 -S opera
+	# 			#$pipeline = $pipeline | ? { (-not (-not $_)) } | % { if(-not $_) { return; } } 
+	# 			Write-Host "$pipeline | rg --context 2 -i $searchString";
+	# 			$pipeline | rg --context 2 -i $searchString
+	# 		} else {
+	# 			return;
+	# 			rg --context 1 -S $searchString 
+	# 		}
+	# 	}
+	# }
 }
 
 function Mem-Hogs { get-process | ? {($_.PM -gt 10000000) -or ($_.VM -gt 10000000)} }
@@ -359,6 +381,11 @@ function dkle {
 #region Helper methods
 Set-Alias web "C:\src\hgr\HustleGotReal\src\Ebaylisterweb"
 
+function portsdamnit {
+	netsh int ip delete excludedportrange protocol=tcp numberofports=100 startport=1373 
+	#netstat -a -b -n | rg opera
+	#netstat -a -b -n | grep opera
+}
 function gitpullall {
 	if (Test-Path ".git") {
 		"Updating Git repo $PWD";
@@ -417,7 +444,7 @@ function rebuildall {
 # 	Start-Sleep 1;
 # }
 
-Set-Item function:Reload-Profile {
+Set-Item -force function:Reload-Profile {
 	$hs = New-Object 'System.Collections.Generic.HashSet[string]' # hashset so we don't load the same profile multiple times
 
 	@(
@@ -452,7 +479,7 @@ Set-Item function:Reload-Profile {
 	
 	Write-Host "Reloaded Profile(s)";
 	# . $profile;
-} -force
+}
 
 
 
@@ -472,4 +499,12 @@ function cleanall {
 	Get-ChildItem -recurse | ? { $_.Name -Like 'project.assets.json' } | Remove-Item -Recurse -Force
 }
 
-Write-Host -ForegroundColor Green "Profile loaded from $profile." # $PSScriptRoot\Microsoft.PowerShell_profile.ps1 
+
+
+# $PSScriptRoot\Microsoft.PowerShell_profile.ps1 
+Write-Color -Text "Profile loaded from ", $profile -Color Gray, Green
+if($isAdmin) {
+	Write-Color -Text "** Administrator mode ", "ON ", "**" -Color Gray,Green,Gray
+} else {
+	Write-Color -Text "** Administrator mode ", "OFF ", "** - run sudo, elevate or GoAdmin to open" -Color Gray,Red,Gray
+}
