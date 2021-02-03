@@ -3,30 +3,65 @@
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$DefaultUser = 'Joe@JOEBONE-LAPTOP'
+$hosts = "C:\Windows\System32\drivers\etc\hosts"
+$appdata = "$HOME/appdata/local"
+$temp = "$HOME/appdata/local/temp"
+$tmp = "$HOME/appdata/local/temp"
 
 function InstallModuleIfAbsent {
-	param([string]$name)
+	param(
+		[string]$name, 
+		[Parameter(Mandatory = $false)][switch]$PreRelease = $false)
 	if (-not(Get-Module -ListAvailable -Name $name)) {
 		Write-Host "  Module $name is absent > Install to current user.  " -ForegroundColor Black -BackgroundColor Yellow
-		Install-Module $name -Scope CurrentUser -Force -AllowClobber
+		if ($PreRelease) {
+			Install-Module $name -Scope CurrentUser -Force -AllowClobber -AllowPrerelease
+		}
+		else {
+			Install-Module $name -Scope CurrentUser -Force -AllowClobber
+		}
 	}
+	Import-Module $name
 }
 function GoAdmin { 
-	if($isAdmin) { Write-Host "Already in admin mode"; return ; }
+	if ($isAdmin) { Write-Host "Already in admin mode"; return ; }
 	& Start-Process wt "/d . pwsh" –Verb RunAs; exit;
 }
 Set-Alias elevate GoAdmin
 Set-Alias sudo GoAdmin
+
+Set-Item -force function:ssh-copy-id {
+	Param (
+		[string]$server
+	)
+	if (-not ($server -like "*@*")) {
+		$server = "root@$server";
+	}
+	Get-Content ~/.ssh/id_rsa.pub | ssh $server "mkdir ~/.ssh; cat >> ~/.ssh/authorized_keys"
+}
+
 #Export-ModuleMember -Function InstallModuleIfAbsent
 ########################################
 #endregion
 
 # $env:Path += ";C:\tools\cygwin\bin\"
+$env:Path = "$(Resolve-Path ~)\.krew\bin;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
 
-if(-not (Test-CommandExists rg)) {
-	Write-Color -Text "ripgrep not detected, run ","choco install ripgrep" -Color White,Red
-} else {
-	Write-Color -Text "Aliasing ", "grep ","to ","rg"," - ripgrep ftw (pipeline and inline mode supported)!" -Color White, Green, White, Green, White
+if (-not (Test-CommandExists node)) {
+	Write-Color -Text "" -Color White;
+	$vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Preview\MSBuild\Microsoft\VisualStudio\NodeJs"
+	if (Test-Path $vsPath) {
+		$env:Path += ";$vsPath";
+		Write-Color -Text "", "Nodejs not detected ", " in path. Adding VS path to environment:", $vsPath -Color White, Red, White, Green;
+	}
+}
+
+if (-not (Test-CommandExists rg)) {
+	Write-Color -Text "ripgrep not detected, run ", "choco install ripgrep" -Color White, Red
+}
+else {
+	Write-Color -Text "Aliasing ", "grep ", "to ", "rg", " - ripgrep ftw (pipeline and inline mode supported)!" -Color White, Green, White, Green, White
 
 	Set-Alias grep rg
 	# Set-Item -force function:grep { 
@@ -62,7 +97,11 @@ if(-not (Test-CommandExists rg)) {
 	# }
 }
 
-function Mem-Hogs { get-process | ? {($_.PM -gt 10000000) -or ($_.VM -gt 10000000)} }
+
+# https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_format.ps1xml?view=powershell-7.1&viewFallbackFrom=powershell-6
+InstallModuleIfAbsent -name Terminal-Icons
+
+function Mem-Hogs { get-process | ? { ($_.PM -gt 10000000) -or ($_.VM -gt 10000000) } }
 Set-Alias free Mem-Hogs
 
 #region Profile imports
@@ -72,13 +111,20 @@ InstallModuleIfAbsent -name posh-git
 # Import-Module Telnet # https://www.techtutsonline.com/powershell-alternative-telnet-command/
 
 #https://github.com/JanDeDobbeleer/oh-my-posh
-InstallModuleIfAbsent -name oh-my-posh
-Set-Theme Paradox # Darkblood | Agnoster | Paradox
+InstallModuleIfAbsent -name oh-my-posh -PreRelease
+InstallModuleIfAbsent -name PSKubectlCompletion
 
+# Set-Theme Paradox # Darkblood | Agnoster | Paradox
 
+# oh-my-posh V3, custom theme
+Set-PoshPrompt -Theme  ~/.oh-my-posh.json
+Write-Color -Text "Setting theme to ", "~/.oh-my-posh.json", ". If file does not exist, run ", `
+	"Write-PoshTheme | Out-File -FilePath ~/.go-my-posh.json -Encoding oem", " to generate it. `nDocumentation at ", `
+	"https://ohmyposh.dev/docs/configure/" `
+	-Color White, Green, White, Red, White, Blue
 #region PSReadline Options
 ######################################################################## PSReadLine Options
-InstallModuleIfAbsent -name PSReadLine
+InstallModuleIfAbsent -name PSReadLine -PreRelease
 Set-PSReadLineOption -HistoryNoDuplicates
 Set-PSReadLineOption -HistorySearchCursorMovesToEnd
 Set-PSReadLineOption -HistorySaveStyle SaveIncrementally
@@ -92,6 +138,12 @@ Set-PSReadlineKeyHandler -Chord 'Shift+Tab' -Function Complete
 Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
 
 ##########################################################################
+
+function pwd-clipboard () {
+	$PWD.Path | CLIP
+}
+Set-Alias Copy-Path pwd-clipboard
+Set-Alias copypath pwd-clipboard
 
 
 ###############################################################################
@@ -113,15 +165,16 @@ Import-Module ZLocation
 #endregion
 
 #region Aliases
-#Set-Alias -Name k -Value kubectl
+Set-Alias -Name k -Value kubectl
 #endregion
 
 #region kubectl aliases
-function k([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl $params }
+# https://github.com/ohmyzsh/ohmyzsh/blob/master/plugins/kubectl/kubectl.plugin.zsh
+#function k([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl $params }
 function kg([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl get -o wide $params }
 function kde([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl describe $params }
 function kgpo([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl get pods $params }
-function kgpoall([Parameter(ValueFromRemainingArguments = $true)]$params) { $gg=kfind($params); $gg; } 
+function kgpoall([Parameter(ValueFromRemainingArguments = $true)]$params) { $gg = kfind($params); $gg; } 
 # & kubectl get pods --all-namespaces $params }
 function kerr([Parameter(ValueFromRemainingArguments = $true)]$params) {
 	#$lines = kubectl get pods --all-namespaces $params `
@@ -135,6 +188,60 @@ function kerr([Parameter(ValueFromRemainingArguments = $true)]$params) {
 	$lines
 }
 
+Set-Item -force function:kmemdump {
+	Param (
+		[string]$podname,
+		[string]$containername
+	)
+
+	# [string]$shell = "/bin/bash"
+
+	Write-Host "Finding Pod";
+	$pod = kfind("$podname $containername") | Where-Object { $_.Status -eq "Running" } | Select-Object -first 1;
+
+	#$pods = kfind($searchString) 
+	#$pod = $pods | Select-Object -first 1;
+
+	if (-not $pod) {
+		Write-Host "Could not find pod";
+		return;
+	}
+	$pod.Container
+
+	Write-Host "TODO: Ensuring Debug tools + Patching is applied";
+
+	Write-Host "Capturing Dump from debug tools";
+	# https://docs.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-dump
+	# want to ensure mini dumps, not fulls are the default :p
+	# /tools/dotnet-dump collect --type mini -p $(pidof dotnet) -o /tmp/dotnet.dmp
+
+	#Write-Host "kubectl exec-as --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- $shell";
+	$ignored = kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- bash -c "/tools/dotnet-dump collect --type mini -p `$(pidof dotnet) -o /tmp/dotnet.dmp"
+
+
+	Write-Host "Compressing Dump file";
+	#7z a /tmp/minidmp.7z /tmp/dotnet.dmp -sdel
+	$ignored = kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- bash -c "7z a /tmp/minidmp.7z /tmp/dotnet.dmp -sdel"
+
+	Write-Host "Copying Dump file to local directory.";
+	#dbapi-debuggable-6cc498f44c-lfs77
+	#kubectl cp $($pod.Namespace)/$($pod.Podname):/tmp/minidmp.7z ./minidmp.7z -c $($pod.Container)
+	$ignored = kubectl cp "$($pod.Namespace)/$($pod.Podname):/tmp/minidmp.7z" ./minidmp.7z -c $($pod.Container)
+
+	if ( -not $? ) {
+		$msg = $Error[0].Exception.Message;
+		Write-Color -Text "$msg" -Color Red
+	} 
+	else {
+		Write-Host "Done, minidump.7z in current folder";
+	}
+	
+	# $($pod.Container)
+	#Write-Host ">> kubectl get pods --namespace $($pod.Namespace) $($pod.Podname) -o json;"
+
+	#return Kube-Get-Default-Port $pod
+}
+
 function kerrdelete() {
 
 	# emulating the following:
@@ -144,8 +251,8 @@ function kerrdelete() {
 	$lines | ForEach-Object -Parallel { 
 		$fields = (-split $_); 
 		$pod = $fields[1]; 
-		$ns  = $fields[0]; 
-		if(($ns -eq "NAMESPACE") -and ($pod -eq "NAME") ) {
+		$ns = $fields[0]; 
+		if (($ns -eq "NAMESPACE") -and ($pod -eq "NAME") ) {
 			return;
 		}
 		$cmd = "kubectl delete pod $pod --namespace $ns"; 
@@ -160,7 +267,8 @@ function kns([string]$newNamespace, [Parameter(ValueFromRemainingArguments = $tr
 	if ($newNamespace) { 
 		"Setting namespace to $newNamespace";
 		& kubectl config set-context --current --namespace=$newNamespace $params 
-	} else { 
+	}
+ else { 
 		& kubectl get namespace -o wide
 	} 
 }
@@ -176,7 +284,7 @@ function kforcepull([string]$text) {
 
 function kfind([string]$text, [string]$containerName) {
 
-	if(($text.Contains(" ")) -and ($containerName.Length -eq 0) ) {
+	if (($text.Contains(" ")) -and ($containerName.Length -eq 0) ) {
 		$parts = $text.Split(" ", [StringSplitOptions]::RemoveEmptyEntries);
 		$text = $parts[0];
 		$containerName = $parts[1];
@@ -185,63 +293,88 @@ function kfind([string]$text, [string]$containerName) {
 
 	$rows = kubectl get pods --all-namespaces | Where-Object { $_ -like $('*' + $text + '*') } # wsl grep -i $text
 
-	foreach($row in $rows){
+	foreach ($row in $rows) {
 		Write-Host $row
 	}
 	$rv = @();
 
 	$subContainerName = ""; # we assume all pods have the same containers, so only need to look at the first one..
 	$row = $rows | Select-Object -first 1
-	if($row) {
+	if ($row) {
 		$pa = $row.Split(" ", [StringSplitOptions]::RemoveEmptyEntries);
 		$containers = (kubectl get pod $pa[1] --namespace $pa[0] -o jsonpath='{.spec.containers[*].name}*').TrimEnd('*').Split(" ");
-		if($containers.Length -gt 1) {
-			Write-Color -Text "Multiple containers found: ",$containers -Color White,Blue
+		if ($containers.Length -gt 1) {
+			Write-Color -Text "Multiple containers found: ", $containers -Color White, Blue
 			$subContainerName = $containers `
-					| Sort-Object -Property Length `
-					| Where-Object { $_.IndexOf($containerName, [StringComparison]::OrdinalIgnoreCase) -gt -1 } `
-					| Select-Object -first 1
-			Write-Color -Text "Choosing container within pod: ", $subContainerName -Color White,Yellow;
+			| Sort-Object -Property Length `
+			| Where-Object { $_.IndexOf($containerName, [StringComparison]::OrdinalIgnoreCase) -gt -1 } `
+			| Select-Object -first 1
+			Write-Color -Text "Choosing container within pod: ", $subContainerName -Color White, Yellow;
 		}
 	}
 
-	foreach($row in $rows) {
+	foreach ($row in $rows) {
 		$Obj = @{};
 		$pa = $row.Split(" ", [StringSplitOptions]::RemoveEmptyEntries); 
 		$Obj.Podname = $pa[1];
 		$Obj.Namespace = $pa[0]; 
 		$Obj.Status = $pa[3];
-		if($subContainerName) {
+		if ($subContainerName) {
 			$Obj.Container = $subContainerName;
 		}
 		$rv += (New-Object PSObject -Property $Obj)
 	}
 	return $rv;
 }
-function klf([Parameter(ValueFromRemainingArguments = $true)]$podOrDeploymentName) {
+function klf(
+	[switch] $allLogs,
+	[Parameter(ValueFromRemainingArguments = $true)]$podOrDeploymentName) {
+
+	# $allLogs = $false;
+	Write-Host $PSBoundParameters
+	if (-not $allLogs) {
+		Write-Color -Text "If you want to get ALL logs, specify ", "-all", " as a parameter" -Color White, Green, White
+	}
 
 	$pod = kfind($podOrDeploymentName) | Sort-Object -Property Status -Descending | select -first 1;
-	if(-not $pod) {
+	if (-not $pod) {
 		"No pod found"
 		return;
 	}
 	"Executing into pod : $($pod.Namespace)\$($pod.Podname), [$($pod.Container))] Status: $($pod.Status)"
 
-	& kubectl logs --follow --tail 30 $pod.Podname $pod.Container --namespace $pod.Namespace
+	if ($allLogs -eq $true) {
+		Write-Color -Text "Returning ", "all", " logs since start of pod" -Color White, Green, White
+		& kubectl logs --follow --tail -1 $pod.Podname $pod.Container --namespace $pod.Namespace
+	}
+ else {
+		& kubectl logs --follow --tail 30 $pod.Podname $pod.Container --namespace $pod.Namespace
+	}
 }
 
 function kte([string]$podname, [string]$containername, [string]$shell = "/bin/bash") {
+	$shell = "/bin/bash"
 	
-	$pod = kfind("$podname $containername") | Where-Object { $_.Status -eq "Running" } | Select-Object -first 1;
-	if(-not $pod -or -not $pod.Container ) {
-		"No pod or specific container found"
+	$pod = kfind("$podname $containername") | Select-Object -first 1;
+	if (-not $pod ) {
+		"No pod found"
 		return;
 	}
-	Write-Color -Text "Executing into pod : ","$($pod.Namespace)\$($pod.Podname) ",[$($pod.Container)]," Status: ", $($pod.Status), " $shell" -Color White, Yellow, Green, White, Green, Magenta
+	Write-Color -Text "Executing into pod : ", "$($pod.Namespace)\$($pod.Podname) ", [$($pod.Container)], " Status: ", $($pod.Status), " $shell" -Color White, Yellow, Green, White, Green, Magenta
+
+	Write-Host "exec-as and krew must be installed. https://github.com/jordanwilson230/kubectl-plugins/tree/krew#kubectl-exec-as";
 
 	#kubectl exec -it $pod.PodName $pod.Container --namespace $pod.Namespace -- $shell
-	Write-Host "kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- $shell";
-	kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- $shell
+	if (-not -not $pod.Container) {
+		Write-Host "kubectl exec-as --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- $shell";
+		kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- $shell
+	}
+ else {
+		Write-Host "kubectl exec-as --stdin --tty $($pod.PodName) --namespace $($pod.Namespace) -- $shell";
+		kubectl exec --stdin --tty $($pod.PodName) --namespace $($pod.Namespace) -- $shell
+	}
+	
+	
 }
 
 Set-Item -force function:Kube-Get-Default-Port-String {
@@ -250,7 +383,7 @@ Set-Item -force function:Kube-Get-Default-Port-String {
 	)
 
 	$pod = kfind($searchString) | Select-Object -first 1;
-	if(-not $pod) {
+	if (-not $pod) {
 		Write-Host "Could not find pod";
 		return;
 	}
@@ -268,7 +401,7 @@ Set-Item -force function:Kube-Get-Default-Port {
 	$js = kubectl get pod --namespace $pod.Namespace $pod.Podname -o json | ConvertFrom-Json;
 	$containerSpec = $js.spec.containers | Where-Object { $_.name -eq $pod.Container } | Select-Object -first 1
 
-	if(-not $containerSpec.ports) {
+	if (-not $containerSpec.ports) {
 		Write-Host -ForegroundColor Red "No port information in the container spec, guessing ""80""";
 		return 80;
 	}
@@ -276,29 +409,34 @@ Set-Item -force function:Kube-Get-Default-Port {
 }
 
 Set-Item -force function:kpf {
-	[CmdletBinding(DefaultParameterSetName='podcontainerport',PositionalBinding=$true,ConfirmImpact='Medium')]
+	[CmdletBinding(DefaultParameterSetName = 'podcontainerport', PositionalBinding = $true, ConfirmImpact = 'Medium')]
 	Param (
-			#[Parameter(Mandatory=$true,Position=0,ValueFromPipelineByPropertyName=$true,ParameterSetName='Parameter Set 1')] $p1
-			[Parameter(ParameterSetName='podcontainerport',Mandatory=$false,Position = 0)]
-			[string] $podname,
+		#[Parameter(Mandatory=$true,Position=0,ValueFromPipelineByPropertyName=$true,ParameterSetName='Parameter Set 1')] $p1
+		[Parameter(ParameterSetName = 'podcontainerport', Mandatory = $false, Position = 0)]
+		[string] $podname,
 
-			[Parameter(ParameterSetName='podcontainerport',Mandatory=$false,Position = 1)]
-			[string] $container,
+		[Parameter(ParameterSetName = 'podcontainerport', Mandatory = $false, Position = 1)]
+		[string] $container,
 
-			[Parameter(ParameterSetName='podcontainerport',Mandatory=$false,Position = 2)]
-			[string] $port
-		)
+		[Parameter(ParameterSetName = 'podcontainerport', Mandatory = $false, Position = 2)]
+		[string] $port,
+
+		[Parameter(ParameterSetName = 'podcontainerport', Mandatory = $false, Position = 3)]
+		[boolean] $reconnect = $false
+	)
 
 	if (-not $podname) {
+		# kpf -reconnect=$true dbapi dbapi 62160:80
 		Write-Color `
-			-Text "Parameters for kpf : ","podname ","[containername] ","[local:remote] ", " `r`ne.g. `r`n", "  kpf dbapi 5000:80`r`n", `
-				  " or `r`n","  kpf dbapi aws 5000:80`r`n" `
-			-Color Gray,Red,Blue,Red,Gray,Yellow,Gray,Yellow
+			-Text "Parameters for kpf : ", "[-reconnect=`$true] ", "podname ", "[containername] ", "[local:remote] ", " `r`ne.g. `r`n", "  kpf dbapi 5000:80`r`n", `
+			" or `r`n", "  kpf dbapi aws 5000:80`r`n", `
+			" or `r`n", "  kpf dbapi dbapi 62160:80 `$True`r`n" `
+			-Color Gray, Blue, Red, Blue, Red, Gray, Yellow, Gray, Yellow, Gray, Yellow
 		return;
 	}
 	#[string] $podname, [string]$container, [string]$port
 
-	if(-not $container) {
+	if (-not $container) {
 		Write-Host "No port mapping specified, choosing default container and guessing port";
 	}
 
@@ -309,20 +447,33 @@ Set-Item -force function:kpf {
 
 	$pod = kfind -text $podname -containerName $container | Select-Object -first 1;
 	
-	if(-not $pod) {
+	if (-not $pod) {
 		Write-Host "No pod found to port forward to. Search for podname: ""$podname""; Container: ""$container"""
 		return;
 	}
 
-	if(-not $port) {
+	if (-not $port) {
 		"Port not specified, trying to guess.."
 		$port = Kube-Get-Default-Port $pod
 
 		Write-Color -Text "best guess for port is: ", $port -Color Gray, Yellow
 	}
 
-	">>> kubectl port-forward --namespace $($pod.Namespace) $($pod.Podname) $($pod.Container) ${port} $($containers) --address 0.0.0.0";
-	& kubectl port-forward --namespace $pod.Namespace $pod.Podname $port $containers --address 0.0.0.0 #$pod.Container 
+	if ($reconnect -eq $True) {
+		while ($True) {
+			"Looping connection...";
+			">>> kubectl port-forward --namespace $($pod.Namespace) $($pod.Podname) $($pod.Container) ${port} $($containers) --address 0.0.0.0";
+			& kubectl port-forward --namespace $pod.Namespace $pod.Podname $port $containers --address 0.0.0.0 #$pod.Container 
+			"Reconnecting...";
+			$pod = kfind -text $podname -containerName $container | Select-Object -first 1;
+		}
+	}
+ else {
+		">>> kubectl port-forward --namespace $($pod.Namespace) $($pod.Podname) $($pod.Container) ${port} $($containers) --address 0.0.0.0";
+		& kubectl port-forward --namespace $pod.Namespace $pod.Podname $port $containers --address 0.0.0.0 #$pod.Container 	
+	}
+
+	
 
 	# if($containers.Length -gt 1) {		
 	# 	$containers = $containers | wsl grep $podname | select -first 1;
@@ -354,9 +505,23 @@ function knpall([Parameter(ValueFromRemainingArguments = $true)]$params) { knode
 function dkbash {
 	param ( [string] $ImageId, [string] $shell = 'bash' )
 	# grep $containerid = Where-Object { $_ -like $('*' + $containerId + '*') }
-	$containerId = docker ps | Where-Object { $_ -like $('*' + $containerId + '*') } | ForEach-Object { $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)[0] }
+	# $containerId = docker ps | Where-Object { $_ -like $('*' + $containerId + '*') } | ForEach-Object { $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)[0] }
 	
-	docker run -it --entrypoint "/bin/${shell}" --rm ${ImageId}
+	docker run -it -e "TERM=xterm-256color" --entrypoint "/bin/${shell}" --rm ${ImageId}
+}
+
+function dkdebug {
+	param ( [string] $containerId, [string] $shell = 'bash' )
+	# grep $containerid = Where-Object { $_ -like $('*' + $containerId + '*') }
+	$containerId = docker ps | Where-Object { $_ -like $('*' + $containerId + '*') } | ForEach-Object { $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)[0] }
+	Write-Host "container id: $containerId";
+
+	docker exec -it ${containerId} "sh" -c "apt install wget -y"
+	docker exec -it ${containerId} "sh" -c "wget https://aka.ms/getvsdbgsh -O - 2>/dev/null | /bin/sh /dev/stdin -v vs2017u5 -l /vsdbg/vsdbg"
+	docker exec -it ${containerId} "sh" -c "wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb"
+	docker exec -it ${containerId} "sh" -c "dpkg -i packages-microsoft-prod.deb"
+	docker exec -it ${containerId} "sh" -c "apt-get update; apt-get install -y apt-transport-https && apt-get update && apt-get install -y dotnet-sdk-3.1"
+	docker exec -it ${containerId} "sh" -c "dotnet dev-certs https --clean; dotnet dev-certs https --trust"
 }
 function dke {
 	param ( [string] $containerId, [string] $shell = 'bash' )
@@ -397,7 +562,8 @@ function gitpullall {
 		if (Test-Path ".git") {
 			"Updating Git repo at $a";
 			git pull --all;
-		} else {
+		}
+		else {
 			"Ignoring non git folder at $a";
 		}
 	}
@@ -407,7 +573,44 @@ function gitpullall {
 
 function localseq { docker run --name seq -d --restart unless-stopped -e ACCEPT_EULA=Y -p 5341:80 datalust/seq:latest }
 
+function ClearCaches {
+	nuget locals all -Clear # all nugets
+	npm cache clean -force # npm folders
+	yarn cache clean -force # yarn...
+	C:\ProgramData\chocolatey\bin\choco-cleaner.bat # chocolatey caches..
 
+	# temp folder
+	pushd
+	cd $env:TEMP 
+	gci | rm -Recurse -Force
+	popd
+
+	# Clear WSL space, compact the vhds?
+	wsl.exe --list --verbose
+	#wsl --terminate <DistributionName>
+	wsl --shutdown 
+	# $pathToVHD = $("$Env:LOCALAPPDATA\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc")
+
+	# 	# To Move WSL distro:
+	#Function WSL-SetDefaultUser ($distro, $user) { Get-ItemProperty Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lxss\*\ DistributionName | Where-Object -Property DistributionName -eq $distro | Set-ItemProperty -Name DefaultUid -Value ((wsl -d $distro -u $user -e id -u) | Out-String); };
+
+	# wsl --export Ubuntu-18.04 .\ubuntu.tar
+	# wsl --unregister Ubuntu-18.04
+	# wsl --import Ubuntu . ubuntu.tar
+	# wsl --set-default Ubuntu
+	# sc stop LxssManager
+	# sc start LxssManager
+	# # ubuntu config --default-user joebone
+	# #LxRunOffline.exe set-uid -n Ubuntu -v joebone
+
+	# WSL-SetDefaultUser Ubuntu joebone
+
+	$pathToVHD = "C:\wsl\Ubuntu\ext4.vhdx" #/AppData/Local/Docker/wsl/data/ext4.vhdx
+	# diskpart $pathToVHD 
+	#select vdisk file="C:\Users\valorin\AppData\Local\Packages\WhitewaterFoundryLtd.Co.16571368D6CFF_kd...\LocalState\ext4.vhdx"
+	#DISKPART> compact vdisk
+
+}
 function csrc { Set-Location C:\src\mine\mpieras }
 function chgr { Set-Location C:\src\hgr\HustleGotReal }
 function cweb { Set-Location C:\src\hgr\HustleGotReal\src\Ebaylisterweb }
@@ -461,9 +664,10 @@ Set-Item -force function:Reload-Profile {
 			
 			#Write-Verbose "Running $_"
 			$measure = Measure-Command { . $_ }
-			Write-Color -Text "$($measure.TotalMilliSeconds)"," for ","$_" -Color Blue,White,Yellow
+			Write-Color -Text "$($measure.TotalMilliSeconds)", " for ", "$_" -Color Blue, White, Yellow
 			#$(. $_)
-		} else {
+		}
+		else {
 			#Write-Host -ForegroundColor Red $_ 
 		}
 	}
@@ -473,7 +677,8 @@ Set-Item -force function:Reload-Profile {
 
 	if (Test-CommandExists refreshenv) {
 		refreshenv; #Update-SessionEnvironment
-	} else {
+	}
+ else {
 		Write-Host -ForegroundColor Red "Could not call refreshenv, is chocolatey installed? Run 'iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))' to install if not..";
 	}
 	
@@ -493,18 +698,21 @@ Set-Alias ls Get-ChildItemColorFormatWide -Option AllScope
 
 
 function cleanall {
-	echo "Deleting all bin, obj, packages and build/ folders";
-	Get-ChildItem -recurse | ? { $_.PSIsContainer } | Where-Object { $_.Name -Like 'obj' -or $_.Name -Like 'packages' -or $_.Name -Like 'bin' -or $_.Name -Like 'build' } | Remove-Item -Recurse -Force
-	echo "Deleting all project.assets.json";
-	Get-ChildItem -recurse | ? { $_.Name -Like 'project.assets.json' } | Remove-Item -Recurse -Force
+	Push-Location
+	Write-Output "Deleting all bin, obj, packages and build/ folders";
+	Get-ChildItem -recurse | Where-Object { $_.PSIsContainer } | Where-Object { $_.Name -Like 'obj' -or $_.Name -Like 'packages' -or $_.Name -Like 'bin' -or $_.Name -Like 'build' } | Remove-Item -Recurse -Force
+	Write-Output "Deleting all project.assets.json";
+	Get-ChildItem -recurse | Where-Object { $_.Name -Like 'project.assets.json' } | Remove-Item -Recurse -Force
+	Pop-Location
 }
 
 
 
 # $PSScriptRoot\Microsoft.PowerShell_profile.ps1 
 Write-Color -Text "Profile loaded from ", $profile -Color Gray, Green
-if($isAdmin) {
-	Write-Color -Text "** Administrator mode ", "ON ", "**" -Color Gray,Green,Gray
-} else {
-	Write-Color -Text "** Administrator mode ", "OFF ", "** - run sudo, elevate or GoAdmin to open" -Color Gray,Red,Gray
+if ($isAdmin) {
+	Write-Color -Text "** Administrator mode ", "ON ", "**" -Color Gray, Green, Gray
+}
+else {
+	Write-Color -Text "** Administrator mode ", "OFF ", "** - run sudo, elevate or GoAdmin to open" -Color Gray, Red, Gray
 }
