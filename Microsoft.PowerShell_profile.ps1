@@ -118,10 +118,10 @@ InstallModuleIfAbsent -name PSKubectlCompletion
 
 # oh-my-posh V3, custom theme
 Set-PoshPrompt -Theme  ~/.oh-my-posh.json
-Write-Color -Text "Setting theme to ", "~/.oh-my-posh.json", ". If file does not exist, run ", `
-	"Write-PoshTheme | Out-File -FilePath ~/.go-my-posh.json -Encoding oem", " to generate it. `nDocumentation at ", `
+Write-Color -Text "Setting theme to ", "~/.oh-my-posh.json", ". If file does not exist, run `"", `
+	"Write-PoshTheme | Out-File -FilePath ~/.go-my-posh.json -Encoding oem", "`" to generate it. `nDocumentation at ", `
 	"https://ohmyposh.dev/docs/configure/" `
-	-Color White, Green, White, Red, White, Blue
+	-Color White, Green, White, DarkGray, White, Blue
 #region PSReadline Options
 ######################################################################## PSReadLine Options
 InstallModuleIfAbsent -name PSReadLine -PreRelease
@@ -551,6 +551,46 @@ function portsdamnit {
 	#netstat -a -b -n | rg opera
 	#netstat -a -b -n | grep opera
 }
+function gitupdate {
+	$dir = Get-GitDirectory;
+	$z = $null;
+	if (-not $dir) {
+		Write-Color -Text "Could not locate git directory." -Color Red
+		return;
+	}
+
+	$currentBranch = $(git symbolic-ref HEAD).Replace("refs/heads/", "");
+	$refs = $(git for-each-ref --format='%(upstream:short)') `
+	| ? { -not [string]::IsNullOrEmpty($_) }
+	| % { $_.Replace("origin/", "") }
+
+	if ($refs.Length -gt 0) {
+		git fetch --all --prune
+	}
+	Write-Color -Text "Updating $($refs.Length) branches.." -Color Gray
+
+	$rv = $(git stash)
+	
+	foreach ($br in $refs) {
+		try {
+			Write-Color -Text "Updating branch ", $br -Color Gray, Green
+			$z = $($(git checkout $br))
+			$z = $(git pull)
+		}
+		catch {
+		}
+	}
+	Write-Color -Text "Done pulling, returning to initial branch ", $currentBranch -Color Gray, Green
+
+	$z = $(git checkout $currentBranch)
+
+	if (-not $rv.StartsWith("No local changes to save")) {
+		Write-Color -Text "Restoring WIP stash..", -Color Yellow
+		$z = $(git stash pop)
+	}
+}
+
+
 function gitpullall {
 	if (Test-Path ".git") {
 		"Updating Git repo $PWD";
