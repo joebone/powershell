@@ -8,6 +8,7 @@ $hosts = "C:\Windows\System32\drivers\etc\hosts"
 $appdata = "$HOME/appdata/local"
 $temp = "$HOME/appdata/local/temp"
 $tmp = "$HOME/appdata/local/temp"
+$scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
 
 function InstallModuleIfAbsent {
 	param(
@@ -22,7 +23,12 @@ function InstallModuleIfAbsent {
 			Install-Module $name -Scope CurrentUser -Force -AllowClobber
 		}
 	}
-	Import-Module $name
+	try { 
+		Import-Module $name
+	} 
+	catch {
+		Write-Host "Error importing $name"; 
+	}
 }
 function GoAdmin { 
 	if ($isAdmin) { Write-Host "Already in admin mode"; return ; }
@@ -46,7 +52,7 @@ Set-Item -force function:ssh-copy-id {
 #endregion
 
 # $env:Path += ";C:\tools\cygwin\bin\"
-$env:Path = "$(Resolve-Path ~)\.krew\bin;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
+$env:Path = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\;$(Resolve-Path ~)\.krew\bin;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
 
 if (-not (Test-CommandExists node)) {
 	Write-Color -Text "" -Color White;
@@ -117,9 +123,9 @@ InstallModuleIfAbsent -name PSKubectlCompletion
 # Set-Theme Paradox # Darkblood | Agnoster | Paradox
 
 # oh-my-posh V3, custom theme
-Set-PoshPrompt -Theme  ~/.oh-my-posh.json
-Write-Color -Text "Setting theme to ", "~/.oh-my-posh.json", ". If file does not exist, run `"", `
-	"Write-PoshTheme | Out-File -FilePath ~/.go-my-posh.json -Encoding oem", "`" to generate it. `nDocumentation at ", `
+Set-PoshPrompt -Theme "$scriptPath\ohmyposhtheme.json"
+Write-Color -Text "Setting theme to ", "$scriptPath\ohmyposhtheme.json", ". If file does not exist, run `"", `
+	"Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", "`" to generate it. `nDocumentation at ", `
 	"https://ohmyposh.dev/docs/configure/" `
 	-Color White, Green, White, DarkGray, White, Blue
 #region PSReadline Options
