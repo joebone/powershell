@@ -35,7 +35,9 @@ function GoAdmin {
 	& Start-Process wt "/d . pwsh" –Verb RunAs; exit;
 }
 Set-Alias elevate GoAdmin
-Set-Alias sudo GoAdmin
+Set-Alias gosudo GoAdmin
+Set-Alias which Get-Command
+# Set-Alias where Get-Command
 
 Set-Item -force function:ssh-copy-id {
 	Param (
@@ -52,7 +54,9 @@ Set-Item -force function:ssh-copy-id {
 #endregion
 
 # $env:Path += ";C:\tools\cygwin\bin\"
-$env:Path = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\;$(Resolve-Path ~)\.krew\bin;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
+# To install krew, download the exe from https://github.com/kubernetes-sigs/krew/releases , 
+# then run .\krew install krew
+$env:Path = "c:\bin;%USERPROFILE%\.krew\bin;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\;$(Resolve-Path ~)\.krew\bin;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
 
 if (-not (Test-CommandExists node)) {
 	Write-Color -Text "" -Color White;
@@ -541,7 +545,7 @@ function dkle {
 	param ( [string] $name )
 	
 	#$containerId = docker ps | grep $name | % { $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)[0] }
-	$containerId = docker ps | Where-Object { $_ -like $('*' + $name + '*') } | % { $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)[0] }
+	$containerId = docker ps | Where-Object { $_ -like $('*' + $name + '*') } | ForEach-Object { $_.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)[0] }
 	docker logs -f $containerId
 	
 	
@@ -567,8 +571,8 @@ function gitupdate {
 
 	$currentBranch = $(git symbolic-ref HEAD).Replace("refs/heads/", "");
 	$refs = $(git for-each-ref --format='%(upstream:short)') `
-	| ? { -not [string]::IsNullOrEmpty($_) }
-	| % { $_.Replace("origin/", "") }
+		| ? { -not [string]::IsNullOrEmpty($_) }
+		| % { $_.Replace("origin/", "") }
 
 	if ($refs.Length -gt 0) {
 		git fetch --all --prune
@@ -584,6 +588,7 @@ function gitupdate {
 			$z = $(git pull)
 		}
 		catch {
+			Write-Color -Text "Error updating branch", $br -Color Red, White
 		}
 	}
 	Write-Color -Text "Done pulling, returning to initial branch ", $currentBranch -Color Gray, Green
@@ -591,7 +596,7 @@ function gitupdate {
 	$z = $(git checkout $currentBranch)
 
 	if (-not $rv.StartsWith("No local changes to save")) {
-		Write-Color -Text "Restoring WIP stash..", -Color Yellow
+		Write-Color -Text "Restoring WIP stash.." -Color Yellow
 		$z = $(git stash pop)
 	}
 }
@@ -760,5 +765,7 @@ if ($isAdmin) {
 	Write-Color -Text "** Administrator mode ", "ON ", "**" -Color Gray, Green, Gray
 }
 else {
-	Write-Color -Text "** Administrator mode ", "OFF ", "** - run sudo, elevate or GoAdmin to open" -Color Gray, Red, Gray
+	Write-Color `
+		-Text "** Administrator mode ", "OFF ", "** - run ","gosudo",", ","elevate"," or ","GoAdmin"," to open" `
+		-Color Gray, Red, Gray, Magenta, Gray, Magenta, Gray, Magenta, Gray
 }
