@@ -56,6 +56,8 @@ Set-Item -force function:cleanpackagescache {
 		schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"
 		Dism.exe /online /Cleanup-Image /StartComponentCleanup /ResetBase /SPSuperseded
 		c:\windows\SYSTEM32\cleanmgr.exe /verylowdisk /setup /d c 
+	} catch {
+		
 	}
 
 }
