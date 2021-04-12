@@ -10,6 +10,56 @@ $temp = "$HOME/appdata/local/temp"
 $tmp = "$HOME/appdata/local/temp"
 $scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
 
+Set-Item -force function:cleanpackagescache {
+	#Param (
+		#[string]$server
+	#)
+
+	if(-not $isAdmin) {
+		Write-Host "This function must be run in admin mode. Run GoAdmin to elevate";
+		return;
+	}
+
+	$confirmation = Read-Host "This will irrevocable delete docker volumes, images, package caches for scoop and chocolatey, etc. (y/n)"
+	if (-not ($confirmation -eq 'y')) {
+		# proceed
+		Write-Host "Abandoning cleanup..."
+		return;
+	}
+
+	Write-Host ">>> Cleaning docker..`r`n"
+	docker system prune --all --force --volumes 
+
+	Write-Host ">>> Cleaning chocolatey`r`n"
+	try {
+		if(-not (choco list -lo | ? { $_ -like 'choco-cleaner*'  })) {
+			Write-Host "Choco cleaner not installed, installing..";
+			choco install choco-cleaner
+		} else {
+			choco upgrade choco-cleaner
+		}
+		choco-cleaner.bat
+	} 
+	catch {
+		Write-Host "Error Running choco cleaner"
+	}
+
+	Write-Host "Cleaning scoop"
+	try {
+		scoop cleanup *
+	} catch {
+		Write-Host "Error cleaning up scoop."
+	}
+
+	Write-Host "Cleaning up windows components"
+	try {
+		schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"
+		Dism.exe /online /Cleanup-Image /StartComponentCleanup /ResetBase /SPSuperseded
+		c:\windows\SYSTEM32\cleanmgr.exe /verylowdisk /setup /d c 
+	}
+
+}
+
 function InstallModuleIfAbsent {
 	param(
 		[string]$name, 
@@ -30,6 +80,7 @@ function InstallModuleIfAbsent {
 		Write-Host "Error importing $name"; 
 	}
 }
+
 function GoAdmin { 
 	if ($isAdmin) { Write-Host "Already in admin mode"; return ; }
 	& Start-Process wt "/d . pwsh" –Verb RunAs; exit;
@@ -56,7 +107,7 @@ Set-Item -force function:ssh-copy-id {
 # $env:Path += ";C:\tools\cygwin\bin\"
 # To install krew, download the exe from https://github.com/kubernetes-sigs/krew/releases , 
 # then run .\krew install krew
-$env:Path = "c:\bin;%USERPROFILE%\.krew\bin;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\;$(Resolve-Path ~)\.krew\bin;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
+$env:Path = "c:\bin;$(Resolve-Path ~)\scoop\shims;$(Resolve-Path ~)\.krew\bin;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\;" + $env:Path; # after installing krew (https://github.com/kubernetes-sigs/krew/releases)
 
 if (-not (Test-CommandExists node)) {
 	Write-Color -Text "" -Color White;
