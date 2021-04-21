@@ -62,11 +62,20 @@ Set-Item -force function:cleanpackagescache {
 
 }
 
+$installedModules;
 function InstallModuleIfAbsent {
 	param(
 		[string]$name, 
 		[Parameter(Mandatory = $false)][switch]$PreRelease = $false)
-	if (-not(Get-Module -ListAvailable -Name $name)) {
+	if(-not $installedModules) {
+		# Cache list for multiple calls
+		# $installedModules = Get-Module -ListAvailable
+		# listavailable makes it HELLA slow
+		$installedModules = Get-Module
+	}
+	# https://antjanus.com/blog/web-development-tutorials/how-to-grep-in-powershell/
+	if (-not($installedModules | Where-Object { $_.Name -Like '*psreadline*' })) {
+	#if (-not(Get-Module -ListAvailable -Name $name)) {
 		Write-Host "  Module $name is absent > Install to current user.  " -ForegroundColor Black -BackgroundColor Yellow
 		if ($PreRelease) {
 			Install-Module $name -Scope CurrentUser -Force -AllowClobber -AllowPrerelease
