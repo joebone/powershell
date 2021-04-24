@@ -345,6 +345,19 @@ function kns([string]$newNamespace, [Parameter(ValueFromRemainingArguments = $tr
 	} 
 }
 
+Set-Item -force function:kdrain {
+	Param (
+		[string]$searchString
+	)
+
+	Write-Host "Draining node $searchString..";
+	Write-Host ">> kubectl drain --ignore-daemonsets --delete-emptydir-data $searchString"
+
+	& kubectl drain --ignore-daemonsets --delete-emptydir-data $searchString
+
+	return Kube-Get-Default-Port $pod
+}
+
 function kforcepull([string]$text) {
 	"Getting deployments"
 	$deployment = kubectl get deployments --all-namespaces | Where-Object { $_ -like $('*' + $text + '*') } | select -first 1 # wsl grep -i $text
