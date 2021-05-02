@@ -114,7 +114,11 @@ $installedModules;
 function InstallModuleIfAbsent {
 	param(
 		[string]$name, 
-		[Parameter(Mandatory = $false)][switch]$PreRelease = $false)
+		[Parameter(Mandatory = $false)][switch]$PreRelease = $false,
+		[Parameter(Mandatory = $false)][string]$Repository = 'PSGallery',
+		[Parameter(Mandatory = $false)][string]$PostInstall = ''
+	)
+	# -name posh-cli -Repository PSGallery -PostInstall "Install-TabCompletion"
 	if(-not $installedModules) {
 		# Cache list for multiple calls
 		# $installedModules = Get-Module -ListAvailable
@@ -124,14 +128,18 @@ function InstallModuleIfAbsent {
 	}
 	# https://antjanus.com/blog/web-development-tutorials/how-to-grep-in-powershell/
 	$searchString = "*$name*"
-	if (-not($installedModules | Where-Object { $_.Name -Like $searchString	 })) {
+	if (-not($installedModules | Where-Object { $_.Name -Like $searchString	})) {
 	#if (-not(Get-Module -ListAvailable -Name $name)) {
 		Write-Host "  Module $name is absent > Install to current user.  " -ForegroundColor Black -BackgroundColor Yellow
 		if ($PreRelease) {
-			Install-Module $name -Scope CurrentUser -Force -AllowClobber -AllowPrerelease
+			Install-Module $name -Scope CurrentUser -Force -AllowClobber -AllowPrerelease -Repository $Repository -SkipPublisherCheck
 		}
 		else {
-			Install-Module $name -Scope CurrentUser -Force -AllowClobber
+			Install-Module $name -Scope CurrentUser -Force -AllowClobber -Repository $Repository -SkipPublisherCheck
+		}
+
+		if($PostInstall) {
+			Invoke-Expression $PostInstall
 		}
 	}
 	try { 
@@ -140,6 +148,7 @@ function InstallModuleIfAbsent {
 	catch {
 		Write-Host "Error importing $name"; 
 	}
+
 }
 
 function GoAdmin { 
@@ -220,21 +229,23 @@ else {
 }
 
 
-# https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_format.ps1xml?view=powershell-7.1&viewFallbackFrom=powershell-6
-InstallModuleIfAbsent -name Terminal-Icons
 
 function Mem-Hogs { get-process | ? { ($_.PM -gt 10000000) -or ($_.VM -gt 10000000) } }
 Set-Alias free Mem-Hogs
 
 #region Profile imports
-InstallModuleIfAbsent -name ProductivityTools.PSTestCommandExists
+# https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_format.ps1xml?view=powershell-7.1&viewFallbackFrom=powershell-6
+InstallModuleIfAbsent -name Terminal-Icons
+# InstallModuleIfAbsent -name ProductivityTools.PSTestCommandExists
 InstallModuleIfAbsent -name PSWriteColor
 # InstallModuleIfAbsent -name posh-git
 # Import-Module Telnet # https://www.techtutsonline.com/powershell-alternative-telnet-command/
 
+InstallModuleIfAbsent -name posh-cli -Repository PSGallery -PostInstall "Install-TabCompletion"
+#Install-Module -Name posh-cli -Repository PSGallery
 #https://github.com/JanDeDobbeleer/oh-my-posh
-# InstallModuleIfAbsent -name oh-my-posh -PreRelease
-InstallModuleIfAbsent -name PSKubectlCompletion
+# InstallModuleIfAbsent -name oh-my-posh -PreRelease # These are done via Scoop
+# InstallModuleIfAbsent -name PSKubectlCompletion
 
 # Set-Theme Paradox # Darkblood | Agnoster | Paradox
 
@@ -954,3 +965,13 @@ else {
 		-Text "** Administrator mode ", "OFF ", "** - run ","gosudo",", ","elevate"," or ","GoAdmin"," to open" `
 		-Color Gray, Red, Gray, Magenta, Gray, Magenta, Gray, Magenta, Gray
 }
+
+Import-Module posh-dotnet
+
+Import-Module DockerCompletion
+
+Import-Module npm-completion
+
+Import-Module scoop-completion
+
+Import-Module yarn-completion
