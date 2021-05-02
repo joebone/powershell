@@ -9,6 +9,54 @@ $appdata = "$HOME/appdata/local"
 $temp = "$HOME/appdata/local/temp"
 $tmp = "$HOME/appdata/local/temp"
 $scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
+$profilePath = $scriptPath
+
+Set-Item -force function:DoUpdates {
+	#Param (
+		#[string]$pp
+	#)
+
+	if(-not $isAdmin) {
+		Write-Host "This function must be run in admin mode. Run GoAdmin to elevate";
+		return;
+	}
+
+
+	try {
+		Write-Host "Checking for windows updates"
+		InstallModuleIfAbsent PSWindowsUpdate
+		Get-WindowsUpdate
+		Install-WindowsUpdate  -AcceptAll -MicrosoftUpdate
+	} catch {}
+
+	try {
+		Write-Host "Updating windows store apps"
+		# $namespaceName = "root\cimv2\mdm\dmmap"
+		# $className = "MDM_EnterpriseModernAppManagement_AppManagement01"
+		# $wmiObj = Get-WmiObject -Namespace $namespaceName -Class $className
+		# $result = $wmiObj.UpdateScanMethod()
+
+		$AppMgmt = Get-WmiObject -Namespace "MDM\_EnterpriseModernAppManagement\_AppManagement01" -Class "MDM\_EnterpriseModernAppManagement\_AppManagement01"
+		$AppMgmt.UpdateScanMethod()
+	} catch {}
+
+	try{
+		Write-Host "Updating scoop"
+		scoop update *
+		scoop cleanup *
+	} catch {}
+
+	try{
+		Write-Host "Updating chocolatey"
+		choco upgrade all
+		choco-cleaner.bat
+	} catch {}
+
+	try {
+		Write-Host "Updating Visual studio.."
+		Start-Process -Wait -FilePath  "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" -ArgumentList "update --passive --norestart --installpath ""C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"""
+	} catch {}
+}
 
 Set-Item -force function:cleanpackagescache {
 	#Param (
@@ -71,10 +119,12 @@ function InstallModuleIfAbsent {
 		# Cache list for multiple calls
 		# $installedModules = Get-Module -ListAvailable
 		# listavailable makes it HELLA slow
-		$installedModules = Get-Module
+		# $installedModules = Get-Module
+		$installedModules = Get-InstalledModule
 	}
 	# https://antjanus.com/blog/web-development-tutorials/how-to-grep-in-powershell/
-	if (-not($installedModules | Where-Object { $_.Name -Like '*psreadline*' })) {
+	$searchString = "*$name*"
+	if (-not($installedModules | Where-Object { $_.Name -Like $searchString	 })) {
 	#if (-not(Get-Module -ListAvailable -Name $name)) {
 		Write-Host "  Module $name is absent > Install to current user.  " -ForegroundColor Black -BackgroundColor Yellow
 		if ($PreRelease) {
@@ -179,11 +229,11 @@ Set-Alias free Mem-Hogs
 #region Profile imports
 InstallModuleIfAbsent -name ProductivityTools.PSTestCommandExists
 InstallModuleIfAbsent -name PSWriteColor
-InstallModuleIfAbsent -name posh-git
+# InstallModuleIfAbsent -name posh-git
 # Import-Module Telnet # https://www.techtutsonline.com/powershell-alternative-telnet-command/
 
 #https://github.com/JanDeDobbeleer/oh-my-posh
-InstallModuleIfAbsent -name oh-my-posh -PreRelease
+# InstallModuleIfAbsent -name oh-my-posh -PreRelease
 InstallModuleIfAbsent -name PSKubectlCompletion
 
 # Set-Theme Paradox # Darkblood | Agnoster | Paradox
@@ -355,7 +405,67 @@ Set-Item -force function:kdrain {
 
 	& kubectl drain --ignore-daemonsets --delete-emptydir-data $searchString
 
-	return Kube-Get-Default-Port $pod
+	Write-Host "Node $searchString drained..";
+}
+
+Set-Item -force function:update-node {
+	Param (
+		[string]$searchString
+	)
+
+	Write-Color -Text '>> Draining node...' -Color Cyan
+	kdrain $searchString;
+
+	Write-Color -Text '>> Updating docker on node...' -Color Cyan
+	
+	Write-Color -Text '>>>> Trying ArchLinux syntax...' -Color Cyan
+	& ssh root@$searchString pacman -Sy --noconfirm docker
+
+	Write-Color -Text '>>>> Trying Ubuntu syntax...' -Color Cyan
+	& ssh root@$searchString apt update `&`& apt -y --only-upgrade install docker-ce docker-ce-cli containerd.io `&`& apt -y upgrade
+
+	Write-Color -Text '>> Restarting node...' -Color Cyan
+	& ssh root@$searchString reboot
+
+	
+	Write-Color -Text '>> Waiting 10 seconds to start connection test loop..' -Color Cyan
+	Start-Sleep -Seconds 10
+
+	Write-Color -Text '>> Looping until machine responds to ssh port..' -Color Cyan
+	
+
+	do {
+		Write-Color -Text '>>>> Waiting..' -Color Cyan
+		Start-Sleep -Seconds 3      
+	} until(Test-NetConnection $searchString -Port 22 | Where-Object { $_.TcpTestSucceeded } )
+
+	Write-Color -Text '>> Waiting 10 seconds to give some breathing room.' -Color Cyan
+	Start-Sleep -Seconds 10
+
+	Write-Color -Text '>> Uncordoning node in kubernetes.' -Color Cyan
+	kubectl uncordon $searchString;
+
+}
+
+Set-Item -force function:update-all-nodes {
+	Param (
+
+	)
+
+	$nodes = @('arch2', 'drone1', 'drone3', 'drone4', 'drone5','drone6','drone7','drone8','drone9','rancher1','rancherweb')
+	Write-Color -Text 'Updating nodes:' -Color Yellow
+	Write-Host $array
+
+	foreach ($node in $nodes) {
+		try {
+			update-node $node
+		} catch  {
+			#($err)
+			Write-Color -Text $_.Exception -Color Red
+		} finally {
+			kubectl uncordon $node
+		}
+	}
 }
 
 function kforcepull([string]$text) {
