@@ -187,7 +187,12 @@ function reboot() {
 	shutdown -t 0 -r
 }
 
-
+Set-Item -force function:ProfileTheProfile {
+	WhyScriptNoGoBrrrr $profile;
+	#. Measure-Script @PSBoundParameters |Sort-Object ExecutionTime |Select-Object -Last 5
+	. Measure-Script $profile |Sort-Object -Descending ExecutionTime |Select-Object -First 10
+	#Measure-Script $profile
+}
 function Initialize-Config() {
 	# Get-Verb
 	Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted   # Set Microsoft PowerShell Gallery to 'Trusted'
@@ -388,13 +393,6 @@ InstallModuleIfAbsent -name posh-cli -Repository PSGallery -PostInstall "Install
 
 # Set-Theme Paradox # Darkblood | Agnoster | Paradox
 
-# oh-my-posh V3, custom theme
-Set-PoshPrompt -Theme "$scriptPath\ohmyposhtheme.json"
-
-Write-Color -Text "Setting theme to ", "$scriptPath\ohmyposhtheme.json", ". If file does not exist, run `"", `
-	"Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", "`" to generate it. `nDocumentation at ", `
-	"https://ohmyposh.dev/docs/configure/" `
-	-Color White, Green, White, DarkGray, White, Blue
 #region PSReadline Options
 ######################################################################## PSReadLine Options
 InstallModuleIfAbsent -name PSReadLine -PreRelease
@@ -1111,17 +1109,30 @@ if ($isAdmin) {
 	Write-Color -Text "** Administrator mode ", "ON ", "**" -Color Gray, Green, Gray
 }
 else {
-	Write-Color `
-		-Text "** Administrator mode ", "OFF ", "** - run ","gosudo",", ","elevate"," or ","GoAdmin"," to open" `
-		-Color Gray, Red, Gray, Magenta, Gray, Magenta, Gray, Magenta, Gray
+	$txts = @("** Administrator mode ", "OFF ", "** - run ","gosudo",", ","elevate"," or ","GoAdmin"," to open")
+	Write-Color -Text $txts -Color Gray, Red, Gray, Magenta, Gray, Magenta, Gray, Magenta, Gray
 }
 
-Import-Module posh-dotnet
+# Import-Module posh-dotnet
 
 Import-Module DockerCompletion
 
-Import-Module npm-completion
+# Import-Module npm-completion
 
 Import-Module scoop-completion
 
 Import-Module yarn-completion
+
+
+# oh-my-posh V3, custom theme
+Set-PoshPrompt -Theme "$scriptPath\ohmyposhtheme.json"
+
+$Texts = @("Setting theme to ", `
+"$scriptPath\ohmyposhtheme.json", `
+". If file does not exist, run `"", `
+ "Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", 
+"`" to generate it. `nDocumentation at ", `
+ "https://ohmyposh.dev/docs/configure/")
+
+Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue
+
