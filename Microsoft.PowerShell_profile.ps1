@@ -21,14 +21,6 @@ Set-Item -force function:DoUpdates {
 		return;
 	}
 
-
-	try {
-		Write-Host "Checking for windows updates"
-		InstallModuleIfAbsent PSWindowsUpdate
-		Get-WindowsUpdate
-		Install-WindowsUpdate  -AcceptAll -MicrosoftUpdate
-	} catch {}
-
 	try {
 		Write-Host "Updating windows store apps"
 		# $namespaceName = "root\cimv2\mdm\dmmap"
@@ -56,6 +48,13 @@ Set-Item -force function:DoUpdates {
 		Write-Host "Updating Visual studio.."
 		Start-Process -Wait -FilePath  "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" -ArgumentList "update --passive --norestart --installpath ""C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"""
 	} catch {}
+
+	try {
+		Write-Host "Checking for windows updates"
+		InstallModuleIfAbsent PSWindowsUpdate
+		Get-WindowsUpdate
+		Install-WindowsUpdate  -AcceptAll -MicrosoftUpdate
+	} catch {}
 }
 
 Set-Item -force function:cleanpackagescache {
@@ -75,8 +74,18 @@ Set-Item -force function:cleanpackagescache {
 		return;
 	}
 
+	Write-Host ">>> Cleaning dotnet nuget cache..`r`n"
+	dotnet nuget locals all --clear
+
+	# InstallModuleIfAbsent Hyper-V
+	Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All
+	#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All
+	#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell
 	Write-Host ">>> Cleaning docker..`r`n"
 	docker system prune --all --force --volumes 
+
+	Optimize-VHD -Path %LOCALAPPDATA%\Docker\wsl\data\ext4.vhdx -Mode Full
+
 
 	Write-Host ">>> Cleaning chocolatey`r`n"
 	try {
