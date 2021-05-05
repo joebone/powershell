@@ -303,6 +303,37 @@ Write-Color -Text "Aliasing ", "grep ", "to ", "rg", " - ripgrep ftw (pipeline a
 Set-Alias grep rg
 
 
+function DisableAV() {
+	Write-Host @"
+	Although Microsoft Defender offers a command to disable the antivirus, it's guarded by the Tamper Protection feature,
+	 which you can only disable through the Virus & threat protection settings available in the Windows Security app.
+
+	To disable the antivirus, turn off Tamper Protection.: 
+
+	SYSINTERNALS TOOLS MUST Be INSTALLED FOR PSEXEC
+"@
+
+
+	try {
+		#$regPath = 'HKLM:\SOFTWARE\Microsoft\Windows Defender\Features'
+		#$acl = Get-Acl $regPath
+		#$acl
+		#psexec.exe -i -s powershell.exe -noprofile Set-ItemProperty -Path $regPath -Name TamperProtection -Value 0 -Force
+		#Start-process powershell.exe -credential 'SYSTEM' -NoNewWindow -ArgumentList '-noprofile -executionpolicy bypass', 'Set-ItemProperty -Path $regPath -Name TamperProtection -Value 0 -Force'
+		Set-ItemProperty -Path $regPath -Name TamperProtection -Value 0 -Force
+
+		#New-ItemProperty -Path $regPath -Name 'TamperProtection' -Value "0" -PropertyType DWORD -Force
+		#You can go to the HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Features registry key, then Set TamperProtection  DWORD value to 0 for turning Off and 5 to on.
+
+		Set-MpPreference -DisableRealtimeMonitoring $true
+
+		#New-ItemProperty -Path $regPath -Name 'TamperProtection' -Value "5" -PropertyType DWORD -Force
+		Set-ItemProperty -Path $regPath -Name TamperProtection -Value 5 -Force
+		
+	} catch {
+		Start-Process explorer.exe windowsdefender:
+	}
+}
 
 
 function DisplayInBytes($num) 
@@ -323,7 +354,7 @@ function Mem-Hogs {
 	# Get-WmiObject WIN32_PROCESS | Sort-Object -Property ws -Descending | Select-Object -first 5 ProcessID,Name,WS
 	$serial = Get-CimInstance win32_bios | select Serialnumber
 	Write-Host "Windows Serial: $serial"
-	Get-CimInstance WIN32_PROCESS | Sort-Object -Property ws -Descending | Select-Object -first 10 ProcessID,Name,WS | `
+	Get-CimInstance WIN32_PROCESS | Sort-Object -Property ws -Descending | Select-Object -first 15 ProcessID,Name,WS | `
 		 ForEach-Object { 
 			 $dd = DisplayInBytes($_.WS);
 			 $ObjectProperties = @{
