@@ -3,7 +3,9 @@
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-$DefaultUser = 'Joe@JOEBONE-LAPTOP'
+# $DefaultUser = 'Joe@JOEBONE-LAPTOP'
+$DefaultUser = $env:UserName + '@' + $env:COMPUTERNAME;
+
 $hosts = "C:\Windows\System32\drivers\etc\hosts"
 $appdata = "$HOME/appdata/local"
 $temp = "$HOME/appdata/local/temp"
@@ -195,6 +197,7 @@ function InstallModuleIfAbsent {
 		# listavailable makes it HELLA slow
 		# $installedModules = Get-Module
 		$installedModules = Get-InstalledModule
+		Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted   # Set Microsoft PowerShell Gallery to 'Trusted'
 	}
 	# https://antjanus.com/blog/web-development-tutorials/how-to-grep-in-powershell/
 	$searchString = "*$name*"
@@ -259,48 +262,52 @@ if (-not (Test-CommandExists node)) {
 }
 
 if (-not (Test-CommandExists rg)) {
-	Write-Color -Text "ripgrep not detected, run ", "choco install ripgrep" -Color White, Red
-}
-else {
-	Write-Color -Text "Aliasing ", "grep ", "to ", "rg", " - ripgrep ftw (pipeline and inline mode supported)!" -Color White, Green, White, Green, White
-
-	Set-Alias grep rg
-	# Set-Item -force function:grep { 
-	# 	[CmdletBinding(DefaultParameterSetName='paramonly',PositionalBinding=$true,ConfirmImpact='Medium')]
-	# 	Param (
-	# 		#[Parameter(Mandatory=$true,Position=0,ValueFromPipelineByPropertyName=$true,ParameterSetName='Parameter Set 1')] $p1
-	# 		[Parameter(ParameterSetName='paramonly', Mandatory=$true, Position = 0)] 
-	# 		[Parameter(ParameterSetName='pipeparam', Mandatory=$true, Position = 0)]
-	# 		[string[]] $searchString,
-
-	# 		[Parameter(ParameterSetName='pipeparam', Mandatory=$true, ValueFromPipeline=$true)] 
-	# 		[Parameter(ParameterSetName='pipeonly',  Mandatory=$true, ValueFromPipeline=$true)]
-	# 		[AllowEmptyString()] [string] $pipeline
-	# 	)
-	# 	Begin {
-	# 		Write-Host "Search string: $searchString, Pipeline Length : $($pipeline.length) : pipeline? $(-not (-not $pipeline))";
-	# 	}
-	# 	Process {
-
-	# 		#Write-Host "b4 :  $($pipeline.Length) $($pipeline.Substring(0, 3))"
-	# 		if($pipeline) {
-	# 			#Write-Host "pp"
-	# 			#Write-Host $pipeline.Substring(0, 10)
-	# 			#netstat -a -b -n | rg --context 1 -S opera
-	# 			#$pipeline = $pipeline | ? { (-not (-not $_)) } | % { if(-not $_) { return; } } 
-	# 			Write-Host "$pipeline | rg --context 2 -i $searchString";
-	# 			$pipeline | rg --context 2 -i $searchString
-	# 		} else {
-	# 			return;
-	# 			rg --context 1 -S $searchString 
-	# 		}
-	# 	}
-	# }
+	Write-Color -Text "ripgrep Not detected, installing...";
+	scoop bucket add extras
+	scoop install ripgrep
 }
 
+Write-Color -Text "Aliasing ", "grep ", "to ", "rg", " - ripgrep ftw (pipeline and inline mode supported)!" -Color White, Green, White, Green, White
+
+Set-Alias grep rg
 
 
-function Mem-Hogs { get-process | ? { ($_.PM -gt 10000000) -or ($_.VM -gt 10000000) } }
+
+
+function DisplayInBytes($num) 
+{
+    $suffix = "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+    $index = 0
+    while ($num -gt 1kb) 
+    {
+        $num = $num / 1kb
+        $index++
+    } 
+
+    "{0:N1} {1}" -f $num, $suffix[$index]
+}
+function Mem-Hogs { 
+	# get-process | Where-Object { ($_.PM -gt 10000000000) -or ($_.VM -gt 10000000000) } 
+	InstallModuleIfAbsent -name WindowsCompatibility # -Scope CurrentUser
+	# Get-WmiObject WIN32_PROCESS | Sort-Object -Property ws -Descending | Select-Object -first 5 ProcessID,Name,WS
+	$serial = Get-CimInstance win32_bios | select Serialnumber
+	Write-Host "Windows Serial: $serial"
+	Get-CimInstance WIN32_PROCESS | Sort-Object -Property ws -Descending | Select-Object -first 10 ProcessID,Name,WS | `
+		 ForEach-Object { 
+			 $dd = DisplayInBytes($_.WS);
+			 $ObjectProperties = @{
+				# Assuming you've assigned something to $Propriedad, $Users and $ErrorState above
+				ProcessId	= $_.ProcessId
+				Name       	= $_.Name
+				WorkingSet 	= $dd
+			}
+			
+			# Now create an object. 
+			# When we just drop it in the pipeline like this, it gets assigned to $Objects
+			New-Object psobject -Property $ObjectProperties
+		}
+		 #"{0:P}" -f $_.WS
+}
 Set-Alias free Mem-Hogs
 
 #region Profile imports

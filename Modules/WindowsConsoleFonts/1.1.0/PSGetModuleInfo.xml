@@ -1,0 +1,146 @@
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">
+  <Obj RefId="0">
+    <TN RefId="0">
+      <T>Microsoft.PowerShell.Commands.PSRepositoryItemInfo</T>
+      <T>System.Management.Automation.PSCustomObject</T>
+      <T>System.Object</T>
+    </TN>
+    <MS>
+      <S N="Name">WindowsConsoleFonts</S>
+      <Version N="Version">1.1.0</Version>
+      <S N="Type">Module</S>
+      <S N="Description">A module for setting the console font in Windows</S>
+      <S N="Author">Joel Bennett</S>
+      <S N="CompanyName">Jaykul</S>
+      <S N="Copyright">Copyright 2018 Joel Bennett</S>
+      <DT N="PublishedDate">2019-03-12T04:01:17+01:00</DT>
+      <Obj N="InstalledDate" RefId="1">
+        <DT>2021-05-05T12:30:26.9872523+02:00</DT>
+        <MS>
+          <Obj N="DisplayHint" RefId="2">
+            <TN RefId="1">
+              <T>Microsoft.PowerShell.Commands.DisplayHintType</T>
+              <T>System.Enum</T>
+              <T>System.ValueType</T>
+              <T>System.Object</T>
+            </TN>
+            <ToString>DateTime</ToString>
+            <I32>2</I32>
+          </Obj>
+        </MS>
+      </Obj>
+      <Nil N="UpdatedDate" />
+      <URI N="LicenseUri">https://github.com/Jaykul/WindowsConsoleFonts/blob/master/LICENSE</URI>
+      <URI N="ProjectUri">https://github.com/Jaykul/WindowsConsoleFonts</URI>
+      <URI N="IconUri">https://github.com/Jaykul/WindowsConsoleFonts/blob/resources/logo.png?raw=true</URI>
+      <Obj N="Tags" RefId="3">
+        <TN RefId="2">
+          <T>System.Object[]</T>
+          <T>System.Array</T>
+          <T>System.Object</T>
+        </TN>
+        <LST>
+          <S>Console</S>
+          <S>Windows</S>
+          <S>Fonts</S>
+          <S>PSModule</S>
+          <S>PSEdition_Core</S>
+          <S>PSEdition_Desktop</S>
+        </LST>
+      </Obj>
+      <Obj N="Includes" RefId="4">
+        <TN RefId="3">
+          <T>System.Collections.Hashtable</T>
+          <T>System.Object</T>
+        </TN>
+        <DCT>
+          <En>
+            <S N="Key">DscResource</S>
+            <Obj N="Value" RefId="5">
+              <TNRef RefId="2" />
+              <LST />
+            </Obj>
+          </En>
+          <En>
+            <S N="Key">Cmdlet</S>
+            <Obj N="Value" RefId="6">
+              <TNRef RefId="2" />
+              <LST>
+                <S>Set-ConsoleFont</S>
+                <S>Get-ConsoleFont</S>
+                <S>Add-Font</S>
+                <S>Remove-Font</S>
+              </LST>
+            </Obj>
+          </En>
+          <En>
+            <S N="Key">RoleCapability</S>
+            <Ref N="Value" RefId="5" />
+          </En>
+          <En>
+            <S N="Key">Command</S>
+            <Obj N="Value" RefId="7">
+              <TNRef RefId="2" />
+              <LST>
+                <S>Set-ConsoleFont</S>
+                <S>Get-ConsoleFont</S>
+                <S>Add-Font</S>
+                <S>Remove-Font</S>
+              </LST>
+            </Obj>
+          </En>
+          <En>
+            <S N="Key">Workflow</S>
+            <Ref N="Value" RefId="5" />
+          </En>
+          <En>
+            <S N="Key">Function</S>
+            <Ref N="Value" RefId="5" />
+          </En>
+        </DCT>
+      </Obj>
+      <Nil N="PowerShellGetFormatVersion" />
+      <S N="ReleaseNotes">WindowsConsoleFonts v1.1.0+Sha.42525ea345337ffdc1514c12258834b5bf32a29c.Date.2019-03-12_x000D__x000A_            Added basic documentation for the commands._x000D__x000A_            Made Set-ConsoleFont detect the font name when using the path to a .ttf file</S>
+      <Obj N="Dependencies" RefId="8">
+        <TNRef RefId="2" />
+        <LST />
+      </Obj>
+      <S N="RepositorySourceLocation">https://www.powershellgallery.com/api/v2</S>
+      <S N="Repository">PSGallery</S>
+      <S N="PackageManagementProvider">NuGet</S>
+      <Obj N="AdditionalMetadata" RefId="9">
+        <TN RefId="4">
+          <T>System.Management.Automation.PSCustomObject</T>
+          <T>System.Object</T>
+        </TN>
+        <MS>
+          <S N="copyright">Copyright 2018 Joel Bennett</S>
+          <S N="description">A module for setting the console font in Windows</S>
+          <S N="requireLicenseAcceptance">False</S>
+          <S N="releaseNotes">WindowsConsoleFonts v1.1.0+Sha.42525ea345337ffdc1514c12258834b5bf32a29c.Date.2019-03-12_x000D__x000A_            Added basic documentation for the commands._x000D__x000A_            Made Set-ConsoleFont detect the font name when using the path to a .ttf file</S>
+          <S N="isLatestVersion">True</S>
+          <S N="isAbsoluteLatestVersion">True</S>
+          <S N="versionDownloadCount">2288</S>
+          <S N="downloadCount">2288</S>
+          <S N="packageSize">53711</S>
+          <S N="published">12/03/2019 04:01:17 +01:00</S>
+          <S N="created">12/03/2019 04:01:17 +01:00</S>
+          <S N="lastUpdated">04/05/2021 05:36:49 +02:00</S>
+          <S N="tags">Console Windows Fonts PSModule PSEdition_Core PSEdition_Desktop PSCmdlet_Set-ConsoleFont PSCommand_Set-ConsoleFont PSCmdlet_Get-ConsoleFont PSCommand_Get-ConsoleFont PSCmdlet_Add-Font PSCommand_Add-Font PSCmdlet_Remove-Font PSCommand_Remove-Font PSIncludes_Cmdlet</S>
+          <S N="developmentDependency">False</S>
+          <S N="updated">2021-05-04T05:36:49Z</S>
+          <S N="NormalizedVersion">1.1.0</S>
+          <S N="Authors">Joel Bennett</S>
+          <S N="IsPrerelease">false</S>
+          <S N="ItemType">Module</S>
+          <S N="FileList">WindowsConsoleFonts.nuspec|Format.ps1xml|WindowsConsoleFonts.psd1|en\WindowsConsoleFonts-Help.xml|lib\System.Drawing.Common.dll|lib\WindowsConsoleFonts.dll</S>
+          <S N="GUID">c93f5818-220b-4b7f-866d-f0ddeea60eb6</S>
+          <S N="PowerShellVersion">5.1</S>
+          <S N="DotNetFrameworkVersion">4.7.2</S>
+          <S N="CompanyName">PoshCode</S>
+        </MS>
+      </Obj>
+      <S N="InstalledLocation">C:\Users\joebo\OneDrive\Documents\PowerShell\Modules\WindowsConsoleFonts\1.1.0</S>
+    </MS>
+  </Obj>
+</Objs>
