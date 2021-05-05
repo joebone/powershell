@@ -10,7 +10,10 @@ $hosts = "C:\Windows\System32\drivers\etc\hosts"
 $appdata = "$HOME/appdata/local"
 $temp = "$HOME/appdata/local/temp"
 $tmp = "$HOME/appdata/local/temp"
-$scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
+$def =  $MyInvocation.MyCommand.Definition
+$scriptName = $MyInvocation.MyCommand.Name
+
+$scriptPath = $def -replace "\\$scriptName", "" # split-path -parent $def # split-path is hella slow
 $profilePath = $scriptPath
 
 Set-Item -force function:DoUpdates {
@@ -183,6 +186,35 @@ Set-Item -force function:cleanpackagescache {
 function reboot() {
 	shutdown -t 0 -r
 }
+
+
+function Initialize-Config() {
+	# Get-Verb
+	Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted   # Set Microsoft PowerShell Gallery to 'Trusted'
+	GetAndCacheInstalledModules -force=$true
+	installTools
+}
+
+function GetAndCacheInstalledModules($force = $false) {
+	$file = "$scriptPath\moduleCache.json";
+	if ($force -or (-not (gci $file | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-1)}))) {
+		Write-Host "Cache for installed modules is expired or force requested. Refreshing."
+		$modules = Get-InstalledModule;
+		$data = ($modules | ConvertTo-Json -Compress)
+		$data | Out-File -FilePath $file
+		$global:installedModules = $modules
+		return $modules;
+		# $CliXMLlength = [System.Management.Automation.PSSerializer]::Serialize($Object).Length
+		# $JSONlength = ($Object | ConvertTo-Json -Compress).Length
+		# $HashData = ($Object | ConvertTo-Hashtable | ConvertTo-HashString).Length
+	}
+	Write-Color -Text "Reading module data from cached file: ", $file -Color White, Red
+	$jsondata = Get-Content -Raw -Path $file | ConvertFrom-Json
+
+	$global:installedModules = $jsondata
+	return $jsondata
+
+}
 function InstallModuleIfAbsent {
 	param(
 		[string]$name, 
@@ -191,17 +223,16 @@ function InstallModuleIfAbsent {
 		[Parameter(Mandatory = $false)][string]$PostInstall = ''
 	)
 	# -name posh-cli -Repository PSGallery -PostInstall "Install-TabCompletion"
-	if(-not $installedModules) {
+	if(-not $global:installedModules) {
 		# Cache list for multiple calls
 		# $installedModules = Get-Module -ListAvailable
 		# listavailable makes it HELLA slow
 		# $installedModules = Get-Module
-		$installedModules = Get-InstalledModule
-		Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted   # Set Microsoft PowerShell Gallery to 'Trusted'
+		$global:installedModules = GetAndCacheInstalledModules # Get-InstalledModule
 	}
 	# https://antjanus.com/blog/web-development-tutorials/how-to-grep-in-powershell/
 	$searchString = "*$name*"
-	if (-not($installedModules | Where-Object { $_.Name -Like $searchString	})) {
+	if (-not($global:installedModules | Where-Object { $_.Name -Like $searchString	})) {
 	#if (-not(Get-Module -ListAvailable -Name $name)) {
 		Write-Host "  Module $name is absent > Install to current user.  " -ForegroundColor Black -BackgroundColor Yellow
 		if ($PreRelease) {
@@ -328,6 +359,7 @@ InstallModuleIfAbsent -name posh-cli -Repository PSGallery -PostInstall "Install
 
 # oh-my-posh V3, custom theme
 Set-PoshPrompt -Theme "$scriptPath\ohmyposhtheme.json"
+
 Write-Color -Text "Setting theme to ", "$scriptPath\ohmyposhtheme.json", ". If file does not exist, run `"", `
 	"Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", "`" to generate it. `nDocumentation at ", `
 	"https://ohmyposh.dev/docs/configure/" `
