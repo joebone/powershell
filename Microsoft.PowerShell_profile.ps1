@@ -57,11 +57,57 @@ Set-Item -force function:DoUpdates {
 	} catch {}
 }
 
+
+Set-Item -force function:CleanDocker {
+	docker system prune --all --force --volumes 
+
+	Write-Host ">>> Compacting Docker VHD";
+	
+	$dockerProc = Get-Process "Docker Desktop" -ErrorAction SilentlyContinue
+	if ($dockerProc) {
+		$dockerProc.CloseMainWindow()
+		$dockerProc | Stop-Process -Force
+	}
+	Stop-Service *docker*
+	
+	# Clear WSL space, compact the vhds?
+	wsl.exe --list --verbose
+	#wsl --terminate <DistributionName>
+	wsl --shutdown 
+	# $pathToVHD = $("$Env:LOCALAPPDATA\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc")
+
+	# 	# To Move WSL distro:
+	#Function WSL-SetDefaultUser ($distro, $user) { Get-ItemProperty Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lxss\*\ DistributionName | Where-Object -Property DistributionName -eq $distro | Set-ItemProperty -Name DefaultUid -Value ((wsl -d $distro -u $user -e id -u) | Out-String); };
+
+	# wsl --export Ubuntu-18.04 .\ubuntu.tar
+	# wsl --unregister Ubuntu-18.04
+	# wsl --import Ubuntu . ubuntu.tar
+	# wsl --set-default Ubuntu
+	# sc stop LxssManager
+	# sc start LxssManager
+	# # ubuntu config --default-user joebone
+	# #LxRunOffline.exe set-uid -n Ubuntu -v joebone
+
+	# WSL-SetDefaultUser Ubuntu joebone
+
+	$pathToVHD = "C:\wsl\Ubuntu\ext4.vhdx" #/AppData/Local/Docker/wsl/data/ext4.vhdx
+	# diskpart $pathToVHD 
+	#select vdisk file="C:\Users\valorin\AppData\Local\Packages\WhitewaterFoundryLtd.Co.16571368D6CFF_kd...\LocalState\ext4.vhdx"
+	#DISKPART> compact vdisk
+
+	Optimize-VHD -Path "$env:LOCALAPPDATA\Docker\wsl\data\ext4.vhdx" -Mode Full
+	Write-Host ">>> Starting docker again"
+	restart-service *docker*
+	Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+	
+}
 Set-Item -force function:cleanpackagescache {
 	#Param (
 		#[string]$server
 	#)
 
+
+	Write-Host "there is some duplication with the other command, 'ClearCaches'"
 	if(-not $isAdmin) {
 		Write-Host "This function must be run in admin mode. Run GoAdmin to elevate";
 		return;
@@ -74,18 +120,23 @@ Set-Item -force function:cleanpackagescache {
 		return;
 	}
 
+	Write-Host ">>> Cleaning npm cache..`r`n"
+	npm cache clean -force # npm folders
+
+	Write-Host ">>> Cleaning yarn cache..`r`n"
+	yarn cache clean -force # yarn...
+
 	Write-Host ">>> Cleaning dotnet nuget cache..`r`n"
 	dotnet nuget locals all --clear
 
-	# InstallModuleIfAbsent Hyper-V
-	Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All
-	#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All
-	#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell
+	if (-not (Test-CommandExists Optimize-VHD)) {
+		# InstallModuleIfAbsent Hyper-V
+		Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All
+		#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All
+		#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell
+	}
 	Write-Host ">>> Cleaning docker..`r`n"
-	docker system prune --all --force --volumes 
-
-	Optimize-VHD -Path %LOCALAPPDATA%\Docker\wsl\data\ext4.vhdx -Mode Full
-
+	CleanDocker
 
 	Write-Host ">>> Cleaning chocolatey`r`n"
 	try {
@@ -117,9 +168,19 @@ Set-Item -force function:cleanpackagescache {
 		
 	}
 
+	Write-Host "Cleaning Temp folder..."
+	# temp folder
+	pushd
+	cd $env:TEMP 
+	gci | rm -Recurse -Force
+	popd
+
+
 }
 
-$installedModules;
+function reboot() {
+	shutdown -t 0 -r
+}
 function InstallModuleIfAbsent {
 	param(
 		[string]$name, 
@@ -830,41 +891,9 @@ function gitpullall {
 function localseq { docker run --name seq -d --restart unless-stopped -e ACCEPT_EULA=Y -p 5341:80 datalust/seq:latest }
 
 function ClearCaches {
-	nuget locals all -Clear # all nugets
-	npm cache clean -force # npm folders
-	yarn cache clean -force # yarn...
-	C:\ProgramData\chocolatey\bin\choco-cleaner.bat # chocolatey caches..
 
-	# temp folder
-	pushd
-	cd $env:TEMP 
-	gci | rm -Recurse -Force
-	popd
-
-	# Clear WSL space, compact the vhds?
-	wsl.exe --list --verbose
-	#wsl --terminate <DistributionName>
-	wsl --shutdown 
-	# $pathToVHD = $("$Env:LOCALAPPDATA\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc")
-
-	# 	# To Move WSL distro:
-	#Function WSL-SetDefaultUser ($distro, $user) { Get-ItemProperty Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lxss\*\ DistributionName | Where-Object -Property DistributionName -eq $distro | Set-ItemProperty -Name DefaultUid -Value ((wsl -d $distro -u $user -e id -u) | Out-String); };
-
-	# wsl --export Ubuntu-18.04 .\ubuntu.tar
-	# wsl --unregister Ubuntu-18.04
-	# wsl --import Ubuntu . ubuntu.tar
-	# wsl --set-default Ubuntu
-	# sc stop LxssManager
-	# sc start LxssManager
-	# # ubuntu config --default-user joebone
-	# #LxRunOffline.exe set-uid -n Ubuntu -v joebone
-
-	# WSL-SetDefaultUser Ubuntu joebone
-
-	$pathToVHD = "C:\wsl\Ubuntu\ext4.vhdx" #/AppData/Local/Docker/wsl/data/ext4.vhdx
-	# diskpart $pathToVHD 
-	#select vdisk file="C:\Users\valorin\AppData\Local\Packages\WhitewaterFoundryLtd.Co.16571368D6CFF_kd...\LocalState\ext4.vhdx"
-	#DISKPART> compact vdisk
+	Write-Host "Calling other clean script (cleanpackagescache)..."
+	cleanpackagescache
 
 }
 function csrc { Set-Location C:\src\mine\mpieras }
@@ -895,6 +924,46 @@ function rebuildall {
 
 
 
+Set-Item -force function:updateProfileInGit {
+	pushd
+	cd $profilePath
+	git add .
+	git commit -m "Updated profile";
+	git push
+	popd
+
+}
+
+Set-Item -force function:installTools {
+	if (-not (Test-CommandExists scoop)) {
+		Write-Host "Installing scoop.";
+		Set-ExecutionPolicy RemoteSigned -scope CurrentUser
+		Invoke-Expression (new-object net.webclient).downloadstring('https://get.scoop.sh')
+		scoop bucket add extras
+
+		Write-Host "Known scoop buckets:"
+		scoop bucket known
+	}
+
+	if (-not (Test-CommandExists choco)) {
+		Write-Host "Installing chocolatey.";
+		Set-ExecutionPolicy RemoteSigned -scope CurrentUser
+		Set-ExecutionPolicy Bypass -Scope Process -Force
+		[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+		Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+	}
+
+	
+	scoop install sysinternals 7zip git helm kubectl nano powertoys oh-my-posh3 spacesniffer golang
+
+	if(-not $devTools) {
+		Write-Host "not installing additional dev tools."
+	} else {
+		Write-Host "Installing additional dev tools."
+		scoop install go
+	}
+
+}
 
 
 # if (Test-CommandExists Reload-Profile) {
