@@ -924,15 +924,17 @@ function rebuildall {
 
 
 
-Set-Item -force function:updateProfileInGit {
-	pushd
-	cd $profilePath
+Set-Item -force function:Update-Profile-In-Git {
+	Push-Location
+	Set-Location $profilePath
 	git add .
 	git commit -m "Updated profile";
 	git push
-	popd
-
+	Pop-Location
 }
+Set-Alias saveProfile Update-Profile-In-Git
+Set-Alias commitProfile Update-Profile-In-Git
+
 
 Set-Item -force function:installTools {
 	if (-not (Test-CommandExists scoop)) {
