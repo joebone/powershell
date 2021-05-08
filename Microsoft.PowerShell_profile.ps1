@@ -1132,7 +1132,7 @@ $Texts = @("Setting theme to ", `
 ". If file does not exist, run `"", `
  "Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", 
 "`" to generate it. `nDocumentation at ", `
- "https://ohmyposh.dev/docs/configure/")
+ "https://ohmyposh.dev/docs/configure/", "`r`nRun ", "DoUpdates", " to update everything.")
 
-Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue
+Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue, White, Magenta, White
 
