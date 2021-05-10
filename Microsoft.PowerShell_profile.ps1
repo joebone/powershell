@@ -218,6 +218,61 @@ Set-Item -force function:cleanpackagescache {
 	Write-Host "Space freed: $([math]::Round($postFreeSpace - $originalFreeSpace, 2))gb"
 }
 
+Set-Item -force function:RemoveJunkWindows10Apps {
+	
+	Import-Module Appx -UseWindowsPowerShell # powerhsell 7.1 broke compat with the winrt libraries, have to remote it to the older one
+	$appname = @(
+		"*BingWeather*"
+		"*ZuneMusic*"
+		"*ZuneVideo*"
+		"*Print3D*",
+		"*Messaging_2019*"
+		"*CandyCrush*"
+		"*MidiKeyboard*"
+
+	)
+
+	ForEach($app in $appname){
+		#Get-AppxPackage -AllUsers | Remove-AppxPackage
+		Write-Color `
+		 		-Text "Removing App and provisioned package", "dism /online /Remove-ProvisionedAppxPackage /PackageName:$item", " then ", `
+		 			"Remove-AppxPackage $item" `
+		 		-Color Gray, Green, Gray, Green
+		Get-AppxPackage -AllUsers -Name $app | Remove-AppxPackage -ErrorAction SilentlyContinue
+		Get-AppxPackage -AllUsers -Name $app | Remove-AppxProvisionedPackage -ErrorAction SilentlyContinue
+	}
+
+	
+	# Write-Host "To get a list of packages, run ""dism /online /Get-ProvisionedAppxPackages"""
+
+	# InstallModuleIfAbsent Appx
+
+	# $removable = (
+	# 	"Microsoft.BingTravel_1.2.0.145_x86__8wekyb3d8bbwe",
+	# 	"Microsoft.ZuneMusic_1.0.927.0_x86__8wekyb3d8bbwe",
+	# 	"Microsoft.ZuneVideo_1.0.927.0_x86__8wekyb3d8bbwe",
+	# 	"Microsoft.WindowsAlarms_2021.2101.28.0_neutral_~_8wekyb3d8bbwe",
+	# 	"Microsoft.Print3D_3.3.791.0_neutral_~_8wekyb3d8bbwe",
+	# 	"Microsoft.People_2020.901.1724.0_neutral_~_8wekyb3d8bbwe",
+	# 	"Microsoft.MSPaint_2020.2009.30067.0_neutral_~_8wekyb3d8bbwe",
+	# 	"Microsoft.MixedReality.Portal_2000.20111.1381.0_neutral_~_8wekyb3d8bbwe",
+	# 	"Microsoft.MicrosoftSolitaireCollection_4.9.1252.0_neutral_~_8wekyb3d8bbwe",
+	# 	"Microsoft.Microsoft3DViewer_2020.2010.15012.0_neutral_~_8wekyb3d8bbwe"
+	# 	);
+
+	# foreach ($item in $removable) {
+	# 	Write-Color `
+	# 		-Text "Executing ", "dism /online /Remove-ProvisionedAppxPackage /PackageName:$item", " then ", `
+	# 			"Remove-AppxPackage $item" `
+	# 		-Color Gray, Green, Gray, Green
+		
+	# 	$op = $(dism /online /Remove-ProvisionedAppxPackage /PackageName:$item)
+	# 	Remove-AppxPackage $item
+
+	# }
+
+}
+
 function reboot() {
 	shutdown -t 0 -r
 }
