@@ -40,6 +40,7 @@ Set-Item -force function:DoUpdates {
 	try{
 		Write-Host "Updating scoop"
 		scoop update *
+		scoop cache rm *
 		scoop cleanup *
 	} catch {}
 
@@ -106,11 +107,34 @@ Set-Item -force function:CleanDocker {
 	Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
 	
 }
+
+Function Get-FreeSpace {
+	return (Get-CimInstance -Class CIM_LogicalDisk)[0].FreeSpace / 1gb;
+}
+Function Get-DiskSize {
+	$Disks = @()
+	$DiskObjects = Get-CimInstance -Class CIM_LogicalDisk
+	$DiskObjects | ForEach-Object {
+	  $Disk = New-Object PSObject -Property @{
+		Name           = $_.Name
+		Capacity       = [math]::Round($_.Size / 1gb, 2)
+		FreeSpace      = [math]::Round($_.FreeSpace / 1gb, 2)
+		FreePercentage = [math]::Round($_.FreeSpace / $_.Size * 100, 1)
+	  }
+	  $Disks += $Disk
+	}
+	Write-Output $Disks | Sort-Object Name
+  }
+
+Get-DiskSize | Format-Table Name,@{L='Capacity (GB)';E={$_.Capacity}},@{L='FreeSpace (GB)';E={$_.FreeSpace}},@{L='FreePercentage (%)';E={$_.FreePercentage}}
+
 Set-Item -force function:cleanpackagescache {
 	#Param (
 		#[string]$server
 	#)
 
+	$originalFreeSpace = Get-FreeSpace
+	$preSize = Get-DiskSize
 
 	Write-Host "there is some duplication with the other command, 'ClearCaches'"
 	if(-not $isAdmin) {
@@ -118,7 +142,7 @@ Set-Item -force function:cleanpackagescache {
 		return;
 	}
 
-	$confirmation = Read-Host "This will irrevocable delete docker volumes, images, package caches for scoop and chocolatey, etc. (y/n)"
+	$confirmation = Read-Host "This will irrevocably delete docker volumes, images, package caches for scoop and chocolatey, etc. (y/n)"
 	if (-not ($confirmation -eq 'y')) {
 		# proceed
 		Write-Host "Abandoning cleanup..."
@@ -159,6 +183,7 @@ Set-Item -force function:cleanpackagescache {
 
 	Write-Host "Cleaning scoop"
 	try {
+		scoop cache rm *
 		scoop cleanup *
 	} catch {
 		Write-Host "Error cleaning up scoop."
@@ -173,14 +198,24 @@ Set-Item -force function:cleanpackagescache {
 		
 	}
 
+	Write-Host "Emptying Recycle bin..."
+	Remove-Item -Recurse -Force "$env:systemdrive\`$Recycle.bin"
+
 	Write-Host "Cleaning Temp folder..."
 	# temp folder
-	pushd
-	cd $env:TEMP 
-	gci | rm -Recurse -Force
-	popd
+	Push-Location
+	Set-Location $env:TEMP 
+	try {
+		Get-ChildItem | Remove-Item -Recurse -Force
+	} catch {
 
+	}
+	Pop-Location
 
+	$postFreeSpace = Get-FreeSpace
+	$postSize = Get-DiskSize
+
+	Write-Host "Space freed: $([math]::Round($postFreeSpace - $originalFreeSpace, 2))gb"
 }
 
 function reboot() {
@@ -1132,7 +1167,7 @@ $Texts = @("Setting theme to ", `
 ". If file does not exist, run `"", `
  "Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", 
 "`" to generate it. `nDocumentation at ", `
- "https://ohmyposh.dev/docs/configure/", "`r`nRun ", "DoUpdates", " to update everything.")
+ "https://ohmyposh.dev/docs/configure/", "`r`nRun ", "DoUpdates", " to update everything, and to cleanup space, run ", "cleanpackagescache")
 
-Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue, White, Magenta, White
+Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue, White, Magenta, White, Magenta
 
