@@ -67,6 +67,8 @@ Set-Item -force function:DoUpdates {
 Set-Item -force function:CleanDocker {
 	docker system prune --all --force --volumes 
 
+	wsl -d docker-desktop fstrim /
+	wsl -d docker-desktop-data fstrim /
 	Write-Host ">>> Compacting Docker VHD";
 	
 	$dockerProc = Get-Process "Docker Desktop" -ErrorAction SilentlyContinue
@@ -81,6 +83,11 @@ Set-Item -force function:CleanDocker {
 	#wsl --terminate <DistributionName>
 	wsl --shutdown 
 	# $pathToVHD = $("$Env:LOCALAPPDATA\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc")
+
+
+	#byebye all docker data
+	wslconfig /unregister docker-desktop
+	wslconfig /unregister docker-desktop-data
 
 	# 	# To Move WSL distro:
 	#Function WSL-SetDefaultUser ($distro, $user) { Get-ItemProperty Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lxss\*\ DistributionName | Where-Object -Property DistributionName -eq $distro | Set-ItemProperty -Name DefaultUid -Value ((wsl -d $distro -u $user -e id -u) | Out-String); };
@@ -158,14 +165,20 @@ Set-Item -force function:cleanpackagescache {
 	Write-Host ">>> Cleaning dotnet nuget cache..`r`n"
 	dotnet nuget locals all --clear
 
+	$hadToInstallHyperV = $false
 	if (-not (Test-CommandExists Optimize-VHD)) {
 		# InstallModuleIfAbsent Hyper-V
 		Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All
+		$hadToInstallHyperV = $true
 		#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All
 		#Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell
 	}
 	Write-Host ">>> Cleaning docker..`r`n"
 	CleanDocker
+
+	if($hadToInstallHyperV) {
+		Disable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All
+	}
 
 	Write-Host ">>> Cleaning chocolatey`r`n"
 	try {
@@ -198,19 +211,68 @@ Set-Item -force function:cleanpackagescache {
 		
 	}
 
-	Write-Host "Emptying Recycle bin..."
-	Remove-Item -Recurse -Force "$env:systemdrive\`$Recycle.bin"
+	Write-Host "Getting user list..."
+	Get-ChildItem C:\Users | Select-Object Name | Export-Csv -Path C:\users\$env:USERNAME\users.csv -NoTypeInformation
+	$userlist = Test-Path C:\users\$env:USERNAME\users.csv
 
-	Write-Host "Cleaning Temp folder..."
+	if ($userlist) {
+		Write-Host "Cleaning Firefox Cache"
+		
+		Import-CSV -Path C:\users\$env:USERNAME\users.csv -Header Name | ForEach-Object {
+				Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
+				Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\cache\*.*" -Recurse -Force -EA SilentlyContinue -Verbose
+				Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\cache2\entries\*.*" -Recurse -Force -EA SilentlyContinue -Verbose
+				Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\thumbnails\*" -Recurse -Force -EA SilentlyContinue -Verbose
+				# Remove-Item -path C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\cookies.sqlite -Recurse -Force -EA SilentlyContinue -Verbose
+				Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\webappsstore.sqlite" -Recurse -Force -EA SilentlyContinue -Verbose
+				Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\chromeappsstore.sqlite" -Recurse -Force -EA SilentlyContinue -Verbose
+		}
+		Write-Host -ForegroundColor yellow "Done..."
+
+		Write-Host "Cleaning Google Chrome cache"
+		Import-CSV -Path C:\users\$env:USERNAME\users.csv -Header Name | ForEach-Object {
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Cache2\entries\*" -Recurse -Force -EA SilentlyContinue 
+			# Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Cookies" -Recurse -Force -EA SilentlyContinue -Verbose
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Media Cache" -Recurse -Force -EA SilentlyContinue
+			# Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Cookies-Journal" -Recurse -Force -EA SilentlyContinue -Verbose
+			# Comment out the following line to remove the Chrome Write Font Cache too.
+			# Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\ChromeDWriteFontCache" -Recurse -Force -EA SilentlyContinue -Verbose
+		}
+
+		Write-Host "Cleaning IE Cache" 
+		Import-CSV -Path C:\users\$env:USERNAME\users.csv | ForEach-Object {
+            Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Windows\Temporary Internet Files\*" -Recurse -Force -EA SilentlyContinue
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Windows\WER\*" -Recurse -Force -EA SilentlyContinue
+		}
+
+		Write-Host "Cleaning Edge Cache" 
+		# https://blog.group-ib.com/forensics_edge
+		Import-CSV -Path C:\users\$env:USERNAME\users.csv | ForEach-Object {
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Edge\User Data\**\Cache" -Recurse -Force -EA SilentlyContinue
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Edge\User Data\**\Code Cache" -Recurse -Force -EA SilentlyContinue 
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Edge\User Data\**\Cache Storage" -Recurse -Force  # ServiceWorker Cache
+			Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Edge\User Data\**\Service Worker\CacheStorage" -Recurse -Force  # ServiceWorker Cache
+
+		}
+
+		Write-Host -ForegroundColor Green "All Browsers cache cleaned!"
+	}
+
+	Write-Host "Cleaning Temp folders..."
 	# temp folder
 	Push-Location
 	Set-Location $env:TEMP 
 	try {
 		Get-ChildItem | Remove-Item -Recurse -Force
+		Remove-Item -path "C:\Windows\Temp\*" -Recurse -Force -EA SilentlyContinue -Verbose
 	} catch {
 
 	}
 	Pop-Location
+
+	Write-Host "Emptying Recycle bin..."
+	Remove-Item -Recurse -Force "$env:systemdrive\`$Recycle.bin"
 
 	$postFreeSpace = Get-FreeSpace
 	$postSize = Get-DiskSize
