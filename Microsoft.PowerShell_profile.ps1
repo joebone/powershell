@@ -278,6 +278,12 @@ Set-Item -force function:cleanpackagescache {
 	$postSize = Get-DiskSize
 
 	Write-Host "Space freed: $([math]::Round($postFreeSpace - $originalFreeSpace, 2))gb"
+
+	Write-Host "Waiting 10 seconds..."
+	Start-Sleep 10
+
+	Write-Host "Trimming C:"
+	Optimize-Volume -DriveLetter C -ReTrim -Verbose
 }
 
 Set-Item -force function:RemoveJunkWindows10Apps {
