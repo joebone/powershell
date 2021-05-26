@@ -608,6 +608,8 @@ function knscurrent() {
 	return $Stuff[-1]
 }
 
+function kci { & kubectl cluster-info }
+
 function kga($namespace = '') {
 	
 	if(-not $namespace) {
