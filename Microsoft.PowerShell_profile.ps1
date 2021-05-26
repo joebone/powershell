@@ -602,6 +602,156 @@ Set-Alias -Name k -Value kubectl
 #function k([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl $params }
 function kg([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl get -o wide $params }
 function kde([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl describe $params }
+
+function knscurrent() {
+	$Stuff = kcfg | grep \* | ForEach-Object { $_.Split(' ') }
+	return $Stuff[-1]
+}
+
+function kga($namespace = '') {
+	
+	if(-not $namespace) {
+		$namespace = knscurrent
+	} else {
+
+	}
+
+
+	<#
+NAME                                       SHORTNAMES   APIVERSION                             NAMESPACED   KIND
+bindings                                                v1                                     true         Binding
+configmaps                                 cm           v1                                     true         ConfigMap
+endpoints                                  ep           v1                                     true         Endpoints
+events                                     ev           v1                                     true         Event
+limitranges                                limits       v1                                     true         LimitRange
+persistentvolumeclaims                     pvc          v1                                     true         PersistentVolumeClaim
+pods                                       po           v1                                     true         Pod
+podtemplates                                            v1                                     true         PodTemplate
+replicationcontrollers                     rc           v1                                     true         ReplicationController
+resourcequotas                             quota        v1                                     true         ResourceQuota
+secrets                                                 v1                                     true         Secret
+serviceaccounts                            sa           v1                                     true         ServiceAccount
+services                                   svc          v1                                     true         Service
+challenges                                              acme.cert-manager.io/v1                true         Challenge
+orders                                                  acme.cert-manager.io/v1                true         Order
+controllerrevisions                                     apps/v1                                true         ControllerRevision
+daemonsets                                 ds           apps/v1                                true         DaemonSet
+deployments                                deploy       apps/v1                                true         Deployment
+replicasets                                rs           apps/v1                                true         ReplicaSet
+statefulsets                               sts          apps/v1                                true         StatefulSet
+localsubjectaccessreviews                               authorization.k8s.io/v1                true         LocalSubjectAccessReview
+horizontalpodautoscalers                   hpa          autoscaling/v1                         true         HorizontalPodAutoscaler
+cronjobs                                   cj           batch/v1beta1                          true         CronJob
+jobs                                                    batch/v1                               true         Job
+apps                                                    catalog.cattle.io/v1                   true         App
+operations                                              catalog.cattle.io/v1                   true         Operation
+certificaterequests                        cr,crs       cert-manager.io/v1                     true         CertificateRequest
+certificates                               cert,certs   cert-manager.io/v1                     true         Certificate
+issuers                                                 cert-manager.io/v1                     true         Issuer
+leases                                                  coordination.k8s.io/v1                 true         Lease
+endpointslices                                          discovery.k8s.io/v1beta1               true         EndpointSlice
+events                                     ev           events.k8s.io/v1                       true         Event
+ingresses                                  ing          extensions/v1beta1                     true         Ingress
+bundledeployments                                       fleet.cattle.io/v1alpha1               true         BundleDeployment
+bundlenamespacemappings                                 fleet.cattle.io/v1alpha1               true         BundleNamespaceMapping
+bundles                                                 fleet.cattle.io/v1alpha1               true         Bundle
+clustergroups                                           fleet.cattle.io/v1alpha1               true         ClusterGroup
+clusterregistrations                                    fleet.cattle.io/v1alpha1               true         ClusterRegistration
+clusterregistrationtokens                               fleet.cattle.io/v1alpha1               true         ClusterRegistrationToken
+clusters                                                fleet.cattle.io/v1alpha1               true         Cluster
+gitreporestrictions                                     fleet.cattle.io/v1alpha1               true         GitRepoRestriction
+gitrepos                                                fleet.cattle.io/v1alpha1               true         GitRepo
+gitjobs                                                 gitjob.cattle.io/v1                    true         GitJob
+backingimagemanagers                       lhbim        longhorn.io/v1beta1                    true         BackingImageManager
+backingimages                              lhbi         longhorn.io/v1beta1                    true         BackingImage
+engineimages                               lhei         longhorn.io/v1beta1                    true         EngineImage
+engines                                    lhe          longhorn.io/v1beta1                    true         Engine
+instancemanagers                           lhim         longhorn.io/v1beta1                    true         InstanceManager
+nodes                                      lhn          longhorn.io/v1beta1                    true         Node
+replicas                                   lhr          longhorn.io/v1beta1                    true         Replica
+settings                                   lhs          longhorn.io/v1beta1                    true         Setting
+sharemanagers                              lhsm         longhorn.io/v1beta1                    true         ShareManager
+volumes                                    lhv          longhorn.io/v1beta1                    true         Volume
+catalogtemplates                                        management.cattle.io/v3                true         CatalogTemplate
+catalogtemplateversions                                 management.cattle.io/v3                true         CatalogTemplateVersion
+cisbenchmarkversions                                    management.cattle.io/v3                true         CisBenchmarkVersion
+cisconfigs                                              management.cattle.io/v3                true         CisConfig
+clusteralertgroups                                      management.cattle.io/v3                true         ClusterAlertGroup
+clusteralertrules                                       management.cattle.io/v3                true         ClusterAlertRule
+clusteralerts                                           management.cattle.io/v3                true         ClusterAlert
+clustercatalogs                                         management.cattle.io/v3                true         ClusterCatalog
+clusterloggings                                         management.cattle.io/v3                true         ClusterLogging
+clustermonitorgraphs                                    management.cattle.io/v3                true         ClusterMonitorGraph
+clusterregistrationtokens                               management.cattle.io/v3                true         ClusterRegistrationToken
+clusterroletemplatebindings                             management.cattle.io/v3                true         ClusterRoleTemplateBinding
+clusterscans                                            management.cattle.io/v3                true         ClusterScan
+clustertemplaterevisions                                management.cattle.io/v3                true         ClusterTemplateRevision
+clustertemplates                                        management.cattle.io/v3                true         ClusterTemplate
+etcdbackups                                             management.cattle.io/v3                true         EtcdBackup
+globaldnses                                             management.cattle.io/v3                true         GlobalDns
+globaldnsproviders                                      management.cattle.io/v3                true         GlobalDnsProvider
+monitormetrics                                          management.cattle.io/v3                true         MonitorMetric
+multiclusterapprevisions                                management.cattle.io/v3                true         MultiClusterAppRevision
+multiclusterapps                                        management.cattle.io/v3                true         MultiClusterApp
+nodepools                                               management.cattle.io/v3                true         NodePool
+nodes                                                   management.cattle.io/v3                true         Node
+nodetemplates                                           management.cattle.io/v3                true         NodeTemplate
+notifiers                                               management.cattle.io/v3                true         Notifier
+podsecuritypolicytemplateprojectbindings                management.cattle.io/v3                true         PodSecurityPolicyTemplateProjectBinding
+preferences                                             management.cattle.io/v3                true         Preference
+projectalertgroups                                      management.cattle.io/v3                true         ProjectAlertGroup
+projectalertrules                                       management.cattle.io/v3                true         ProjectAlertRule
+projectalerts                                           management.cattle.io/v3                true         ProjectAlert
+projectcatalogs                                         management.cattle.io/v3                true         ProjectCatalog
+projectloggings                                         management.cattle.io/v3                true         ProjectLogging
+projectmonitorgraphs                                    management.cattle.io/v3                true         ProjectMonitorGraph
+projectnetworkpolicies                                  management.cattle.io/v3                true         ProjectNetworkPolicy
+projectroletemplatebindings                             management.cattle.io/v3                true         ProjectRoleTemplateBinding
+projects                                                management.cattle.io/v3                true         Project
+rkeaddons                                               management.cattle.io/v3                true         RkeAddon
+rkek8sserviceoptions                                    management.cattle.io/v3                true         RkeK8sServiceOption
+rkek8ssystemimages                                      management.cattle.io/v3                true         RkeK8sSystemImage
+samltokens                                              management.cattle.io/v3                true         SamlToken
+pods                                                    metrics.k8s.io/v1beta1                 true         PodMetrics
+alertmanagerconfigs                                     monitoring.coreos.com/v1alpha1         true         AlertmanagerConfig
+alertmanagers                                           monitoring.coreos.com/v1               true         Alertmanager
+podmonitors                                             monitoring.coreos.com/v1               true         PodMonitor
+probes                                                  monitoring.coreos.com/v1               true         Probe
+prometheuses                                            monitoring.coreos.com/v1               true         Prometheus
+prometheusrules                                         monitoring.coreos.com/v1               true         PrometheusRule
+servicemonitors                                         monitoring.coreos.com/v1               true         ServiceMonitor
+thanosrulers                                            monitoring.coreos.com/v1               true         ThanosRuler
+ingresses                                  ing          networking.k8s.io/v1                   true         Ingress
+networkpolicies                            netpol       networking.k8s.io/v1                   true         NetworkPolicy
+poddisruptionbudgets                       pdb          policy/v1beta1                         true         PodDisruptionBudget
+apprevisions                                            project.cattle.io/v3                   true         AppRevision
+apps                                                    project.cattle.io/v3                   true         App
+pipelineexecutions                                      project.cattle.io/v3                   true         PipelineExecution
+pipelines                                               project.cattle.io/v3                   true         Pipeline
+pipelinesettings                                        project.cattle.io/v3                   true         PipelineSetting
+sourcecodecredentials                                   project.cattle.io/v3                   true         SourceCodeCredential
+sourcecodeproviderconfigs                               project.cattle.io/v3                   true         SourceCodeProviderConfig
+sourcecoderepositories                                  project.cattle.io/v3                   true         SourceCodeRepository
+clusters                                                rancher.cattle.io/v1                   true         Cluster
+projects                                                rancher.cattle.io/v1                   true         Project
+roletemplatebindings                                    rancher.cattle.io/v1                   true         RoleTemplateBinding
+rolebindings                                            rbac.authorization.k8s.io/v1           true         RoleBinding
+roles                                                   rbac.authorization.k8s.io/v1           true         Role
+	
+# k api-resources | grep true  # tog et resources that are namespaced
+#>
+	
+	# nodes, namespace
+	Write-Color -Text "Getting all resourcetypes in namespace:", $namespace -Color Gray, Green
+	kubectl get "limits,quota,rc,ing,netpol,pdb,secrets,cm,cr,cert,ds,rs,sts,pv,pvc,svc,deployment,pod,cronjob,job,events" -n $namespace
+
+
+}
+Set-Alias -Name kgetall kga
+
+Set-Item -force function:kev { & kubectl get events }
+Set-Alias -Name kevents kev
+
 function kgpo([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl get pods $params }
 function kgpoall([Parameter(ValueFromRemainingArguments = $true)]$params) { $gg = kfind($params); $gg; } 
 # & kubectl get pods --all-namespaces $params }
