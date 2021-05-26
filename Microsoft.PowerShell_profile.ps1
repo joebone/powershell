@@ -743,15 +743,15 @@ roles                                                   rbac.authorization.k8s.i
 # k api-resources | grep true  # tog et resources that are namespaced
 #>
 	
-	# nodes, namespace
+	# nodes, namespace, pv <-- cluster wide, always returned
 	Write-Color -Text "Getting all resourcetypes in namespace:", $namespace -Color Gray, Green
-	kubectl get "limits,quota,rc,ing,netpol,pdb,secrets,cm,cr,cert,ds,rs,sts,pv,pvc,svc,deployment,pod,cronjob,job,events" -n $namespace
+	kubectl get "limits,quota,rc,ing,netpol,pdb,secrets,cm,cr,cert,ds,rs,sts,pvc,svc,deployment,pod,cronjob,job,events" -n $namespace
 
 
 }
 Set-Alias -Name kgetall kga
 
-Set-Item -force function:kev { & kubectl get events }
+Set-Item -force function:kev { & kubectl get events --sort-by='.metadata.creationTimestamp' }
 Set-Alias -Name kevents kev
 
 function kgpo([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl get pods $params }
