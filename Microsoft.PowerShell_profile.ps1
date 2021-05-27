@@ -602,12 +602,37 @@ Set-Alias -Name k -Value kubectl
 #function k([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl $params }
 function kg([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl get -o wide $params }
 function kde([Parameter(ValueFromRemainingArguments = $true)]$params) { & kubectl describe $params }
+Set-Alias -Name kd -Value kde
+
+function kwhystuck([Parameter(ValueFromRemainingArguments = $true)]$params) {
+	if(-not $params) {
+		$NAMESPACE = knscurrent
+		Write-Output "No namespace specified, using current NS: $NAMESPACE"
+	} else {
+		$NAMESPACE = $params
+	}
+
+	$obj = & kubectl get namespace $(knscurrent) -o json | ConvertFrom-Json
+	$candidate = $obj.status.conditions | Where-Object { $_.status -eq $true } 
+	$crappy = $obj.status.conditions | Where-Object { $_.status -eq $false } 
+	Write-Output "Unlikely candidates:"
+	Write-Host -ForegroundColor Gray ($crappy | Format-Table | Out-String)
+	Write-Output "Likely candidates:"
+	Write-Host -ForegroundColor Red ($candidate | Format-List | Out-String)
+	
+
+	
+	# & kubectl get namespace $(knscurrent) -o json |jq '.spec = {"finalizers":[]}' | ConvertFrom-Json -AsHashtable
+	# & kubectl get namespace $(knscurrent) -o json | ConvertFrom-Json -AsHashtable | $_["spec"]["finalizers"]
+	# & kubectl get namespace $NAMESPACE -o json |jq '.spec = {"finalizers":[]}' | ConvertFrom-Json
+}
 
 function knscurrent() {
 	$Stuff = kcfg | grep \* | ForEach-Object { $_.Split(' ') }
 	return $Stuff[-1]
 }
 
+function kdp { & kubectl describe pod $params }
 function kci { & kubectl cluster-info }
 
 function kga($namespace = '') {
