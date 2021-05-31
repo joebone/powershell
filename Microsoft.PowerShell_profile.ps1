@@ -3,9 +3,7 @@
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-# $DefaultUser = 'Joe@JOEBONE-LAPTOP'
 $DefaultUser = $env:UserName + '@' + $env:COMPUTERNAME;
-
 $hosts = "C:\Windows\System32\drivers\etc\hosts"
 $appdata = "$HOME/appdata/local"
 $temp = "$HOME/appdata/local/temp"
@@ -537,7 +535,9 @@ Set-Alias free Mem-Hogs
 
 #region Profile imports
 # https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_format.ps1xml?view=powershell-7.1&viewFallbackFrom=powershell-6
-InstallModuleIfAbsent -name Terminal-Icons
+# InstallModuleIfAbsent -name Terminal-Icons
+# Terminal icons was broken last i saw..
+
 # InstallModuleIfAbsent -name ProductivityTools.PSTestCommandExists
 InstallModuleIfAbsent -name PSWriteColor
 # InstallModuleIfAbsent -name posh-git
@@ -917,19 +917,29 @@ Set-Item -force function:update-node {
 
 	Write-Color -Text '>> Looping until machine responds to ssh port..' -Color Cyan
 	
-
-	do {
-		Write-Color -Text '>>>> Waiting..' -Color Cyan
-		Start-Sleep -Seconds 3      
-	} until(Test-NetConnection $searchString -Port 22 | Where-Object { $_.TcpTestSucceeded } )
-
-	Write-Color -Text '>> Waiting 10 seconds to give some breathing room.' -Color Cyan
-	Start-Sleep -Seconds 10
+	Wait-Till-Up $searchString
 
 	Write-Color -Text '>> Uncordoning node in kubernetes.' -Color Cyan
 	kubectl uncordon $searchString;
 
 }
+
+Set-Item -force function:Wait-Till-Up {
+	Param (
+		[string]$machineName
+	)
+
+	do {
+		Write-Color -Text '>>>> Waiting..' -Color Cyan
+		Start-Sleep -Seconds 3      
+	} until(Test-NetConnection $machineName -Port 22 | Where-Object { $_.TcpTestSucceeded } )
+
+	Write-Color -Text '>> Waiting 10 seconds to give some breathing room.' -Color Cyan
+	Start-Sleep -Seconds 10
+}
+Set-Alias waitup Wait-Till-Up
+Set-Alias pingup Wait-Till-Up
+Set-Alias isup Wait-Till-Up
 
 Set-Item -force function:update-all-nodes {
 	Param (
