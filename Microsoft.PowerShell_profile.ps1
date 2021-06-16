@@ -923,7 +923,7 @@ Set-Item -force function:update-node {
 	kubectl uncordon $searchString;
 
 }
-
+Set-Alias updatenode update-node
 Set-Item -force function:Wait-Till-Up {
 	Param (
 		[string]$machineName
@@ -1355,9 +1355,14 @@ Set-Item -force function:installTools {
 		Set-ExecutionPolicy RemoteSigned -scope CurrentUser
 		Invoke-Expression (new-object net.webclient).downloadstring('https://get.scoop.sh')
 		scoop bucket add extras
+		scoop bucket add nerd-fonts
+		scoop bucket add Ash258 'https://github.com/Ash258/Scoop-Ash258.git'
+
 
 		Write-Host "Known scoop buckets:"
 		scoop bucket known
+
+		
 	}
 
 	if (-not (Test-CommandExists choco)) {
