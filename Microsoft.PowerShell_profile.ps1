@@ -116,6 +116,9 @@ Set-Item -force function:CleanDocker {
 Function Get-FreeSpace {
 	return (Get-CimInstance -Class CIM_LogicalDisk)[0].FreeSpace / 1gb;
 }
+Set-Alias disk Get-DiskSize
+Set-Alias diskspace Get-DiskSize
+
 Function Get-DiskSize {
 	$Disks = @()
 	$DiskObjects = Get-CimInstance -Class CIM_LogicalDisk
@@ -1338,10 +1341,21 @@ function rebuildall {
 
 
 Set-Item -force function:Update-Profile-In-Git {
+
+ 	param([string[]]
+         [Parameter(Position=0, ValueFromRemainingArguments)]
+         $comment)
+
+	if (-not $comment) {
+		Write-Host "No git comment specified, using generic text 'Updated profile'.";
+		$comment = "Updated profile"
+	} else {
+		Write-Host "Updating profile with comment '$comment'";
+	}
 	Push-Location
 	Set-Location $profilePath
 	git add .
-	git commit -m "Updated profile";
+	git commit -m "$comment";
 	git push
 	Pop-Location
 }
