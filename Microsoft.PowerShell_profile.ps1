@@ -1179,9 +1179,30 @@ Set-Item -force function:kpf {
 	# }
 	#
 }
+
+function kkill($podOrDeploymentName) {
+	$pod = kfind($podOrDeploymentName) | Sort-Object -Property Status -Descending | select -first 1;
+	if (-not $pod) {
+		"No pod found"
+		return;
+	}
+	#$($pod.Namespace)\$($pod.Podname), [$($pod.Container)
+	kubectl delete pods $($pod.Podname) -n $($pod.Namespace) --grace-period=0 --force
+}
+Set-Alias krd kredeploy
 function kredeploy([Parameter(ValueFromRemainingArguments = $true)]$params) { 
 	Write-Host "This is currently not functioning, the idea being to patch the imagepullpolicy briefly, force a redploy, and change it back again"
-	kubectl rollout restart $params 
+
+	Write-Color -Text "Usage examples: " -Color DarkGray
+	Write-Color -Text "krd ", "bulkapi", " -n live" -Color White, Green, White
+	Write-Color -Text "kredeploy ", "statefulsets/keydb", " -n redis" -Color White, Green, White
+	if($params) {
+		if(-not $params[0].Contains("/")) {
+			$params[0] = "deployments/$($params[0])"
+		}
+
+		kubectl rollout restart $params 
+	}
 }
 function knodepods([Parameter(ValueFromRemainingArguments = $true)]$params) { 
 	"kubectl get pods --all-namespaces -o wide --field-selector spec.nodeName=$params";
