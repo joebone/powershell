@@ -1202,6 +1202,7 @@ function kredeploy([Parameter(ValueFromRemainingArguments = $true)]$params) {
 		}
 
 		kubectl rollout restart $params 
+		kubectl rollout status $params
 	}
 }
 function knodepods([Parameter(ValueFromRemainingArguments = $true)]$params) { 
