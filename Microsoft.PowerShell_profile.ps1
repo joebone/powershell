@@ -824,8 +824,29 @@ Set-Item -force function:kmemdump {
 	# want to ensure mini dumps, not fulls are the default :p
 	# /tools/dotnet-dump collect --type mini -p $(pidof dotnet) -o /tmp/dotnet.dmp
 
+	# we need the dotnet sdk
+	# install prerequities
+	# apt update && apt install -y wget  apt-transport-https
+	# wget https://packages.microsoft.com/config/debian/10/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+	# [sudo] dpkg -i packages-microsoft-prod.deb
+  	# [sudo] apt-get update && \
+  	# [sudo] apt-get install -y dotnet-sdk-5.0 
+	# dotnet tool install --global dotnet-dump
+	# change path to include $HOME/.dotnet/tools or
+	# ~/.dotnet/tools/dotnet-dump collect --type mini -p $(pidof dotnet) -o /tmp/dotnet.dmp
+	# ~/.dotnet/tools/dotnet-dump collect -p $(pidof dotnet) -o /tmp/dotnetfull.dmp
+	# mkdir ~/7z
+	# tar would be -gxvf if it was a gzip archive
+	# mkdir ~/7z; wget https://www.7-zip.org/a/7z2102-linux-x64.tar.xz && tar -C ~/7z -xvf 7z2102-linux-x64.tar.xz && rm 7z2102-linux-x64.tar.xz
+	#~/7z/7zz a /tmp/minidmp.7z /tmp/dotnet.dmp -sdel
+
+	# Or Full
+	# ~/.dotnet/tools/dotnet-dump collect -p $(pidof dotnet) -o /tmp/dotnetfull.dmp
+	# ~/7z/7zz a /tmp/fulldump.7z /tmp/dotnetfull.dmp -sdel	
+	# kubectl cp "live/bulkapi-7bf5b4b6fb-x8wc8:/tmp/fulldump.7z" ./fulldump.7z -c "bulkapi"
+	
 	#Write-Host "kubectl exec-as --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- $shell";
-	$ignored = kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- bash -c "/tools/dotnet-dump collect --type mini -p `$(pidof dotnet) -o /tmp/dotnet.dmp"
+	$ignored = kubectl exec --stdin --tty $($pod.PodName) -c $($pod.Container) --namespace $($pod.Namespace) -- bash -c "$HOME/.dotnet/tools/dotnet-dump collect --type mini -p `$(pidof dotnet) -o /tmp/dotnet.dmp"
 
 
 	Write-Host "Compressing Dump file";
@@ -1334,11 +1355,12 @@ function ClearCaches {
 	cleanpackagescache
 
 }
-function csrc { Set-Location C:\src\mine\mpieras }
-function chgr { Set-Location C:\src\hgr\HustleGotReal }
-function cweb { Set-Location C:\src\hgr\HustleGotReal\src\Ebaylisterweb }
+$SourceBase = "$HOME/src"
+function csrc { Set-Location "$SourceBase" }
+function chgr { Set-Location "$SourceBase\HustleGotReal" }
+function cweb { Set-Location "$SourceBase\HustleGotReal\src\Ebaylisterweb" }
 function cdocker { Set-Location c:\docker }
-function cninja { Set-Location C:\src\vaninja }
+function cninja { Set-Location "$SourceBase\vaninja" }
 function ctools { Set-Location C:\tools }
 function cuserprofile { Set-Location ~ } # Helper function to set location to the User Profile directory
 function rebuildall { 
