@@ -118,6 +118,8 @@ Function Get-FreeSpace {
 }
 Set-Alias disk Get-DiskSize
 Set-Alias diskspace Get-DiskSize
+Set-Alias diskfree Get-DiskSize
+Set-Alias freedisk Get-DiskSize
 
 Function Get-DiskSize {
 	$Disks = @()
@@ -1201,6 +1203,45 @@ Set-Item -force function:kpf {
 	#
 }
 
+
+function lowercaseAll() {
+	$confirmation = Read-Host "This will rename all files and folders from the current folder to their lowercase version, with 2 git commits. are you sure?"
+	if (-not ($confirmation -eq 'y')) {
+		# proceed
+		Write-Host "Abandoning..."
+		return;
+	}
+
+	function Filter() {
+		if (-not $_.Name -cne $_.Name.ToLower()) {
+			return $false;
+		}
+		
+		# -and (($_.PSIsContainer))
+	}
+
+	Get-ChildItem . -r | `
+		Where-Object Filter($_) | `
+		ForEach-Object { 
+			# if ($_.Name -cne $_.Name.ToLower()) {
+				
+			# 	 #Rename-Item $_.FullName ("__xrn__" + $_.Name.ToLower());
+			# } 
+		}
+
+	# Write-Host "Prefix __xrn__ added to changed files, commiting...";
+	# git add .
+	# git commit -m "Temporary step committing renamed files"
+
+	
+	# Get-ChildItem . -r | `
+	# ForEach-Object { 
+	# 	if ($_.Name.Contains("__xrn")) {
+	# 		 Rename-Item $_.FullName "__xrn__" + $_.Name.ToLower();
+	# 	} 
+	# }
+}
+
 function kkill($podOrDeploymentName) {
 	$pod = kfind($podOrDeploymentName) | Sort-Object -Property Status -Descending | select -first 1;
 	if (-not $pod) {
@@ -1432,13 +1473,13 @@ Set-Item -force function:installTools {
 	}
 
 	
-	scoop install sysinternals 7zip git helm kubectl nano powertoys oh-my-posh3 spacesniffer golang
+	scoop install sysinternals 7zip git helm kubectl nano powertoys oh-my-posh3 spacesniffer
 
 	if(-not $devTools) {
 		Write-Host "not installing additional dev tools."
 	} else {
 		Write-Host "Installing additional dev tools."
-		scoop install go
+		scoop install go golang
 	}
 
 }
@@ -1540,7 +1581,7 @@ $Texts = @("Setting theme to ", `
 ". If file does not exist, run `"", `
  "Write-PoshTheme | Out-File -FilePath ""$scriptPath\ohmyposhtheme.json"" -Encoding oem", 
 "`" to generate it. `nDocumentation at ", `
- "https://ohmyposh.dev/docs/configure/", "`r`nRun ", "DoUpdates", " to update everything, and to cleanup space, run ", "cleanpackagescache")
+ "https://ohmyposh.dev/docs/configure/", "`r`nRun ", "DoUpdates", " to update everything, and to cleanup space, run ", "cleanpackagescache", " or just ", "CleanDocker")
 
-Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue, White, Magenta, White, Magenta
+Write-Color -Text $Texts -Color White, Green, White, DarkGray, White, Blue, White, Magenta, White, Magenta, White, Magenta
 
